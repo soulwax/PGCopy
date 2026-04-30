@@ -4,8 +4,20 @@ const clearButton = document.querySelector("#clear");
 const log = document.querySelector("#log");
 const statusBadge = document.querySelector("#status");
 const summary = document.querySelector("#summary");
+const truncateDestination = document.querySelector("#truncate-destination");
+const truncateConfirmWrap = document.querySelector("#truncate-confirm-wrap");
+const truncateConfirmation = document.querySelector("#truncate-confirmation");
 
 let runStartedAt = 0;
+
+truncateDestination.addEventListener("change", () => {
+  truncateConfirmWrap.classList.toggle("hidden", !truncateDestination.checked);
+  truncateConfirmation.required = truncateDestination.checked;
+
+  if (!truncateDestination.checked) {
+    truncateConfirmation.value = "";
+  }
+});
 
 clearButton.addEventListener("click", () => {
   log.replaceChildren();
@@ -27,7 +39,9 @@ form.addEventListener("submit", async (event) => {
     destination: form.destination.value.trim(),
     schema: form.schema.value.trim() || "public",
     tables: form.tables.value.trim(),
-    dryRun: form.dryRun.checked
+    dryRun: form.dryRun.checked,
+    truncateDestination: form.truncateDestination.checked,
+    truncateConfirmation: form.truncateConfirmation.value.trim()
   };
 
   try {

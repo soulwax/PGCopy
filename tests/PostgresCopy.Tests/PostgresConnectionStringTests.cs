@@ -35,6 +35,7 @@ public sealed class PostgresConnectionStringTests
             false,
             false,
             false,
+            false,
             CliOptionsParser.DefaultBatchSize);
 
         var ex = Assert.Throws<ValidationException>(() => MigrationSettingsValidator.Validate(options));

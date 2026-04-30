@@ -18,7 +18,8 @@ public static class CliOptionsParser
           --tables <csv>          Copy comma-separated tables.
           --batch-size <number>   Reserved for future row batching. Defaults to 10000.
           --dry-run               Print the plan without copying data.
-          --yes                   Reserved for future destructive confirmations.
+          --truncate-destination  Empty planned destination tables before copying.
+          --yes                   Skip confirmation for destructive actions.
           --verbose               Show stack traces for unexpected failures.
           --help                  Show help.
         """;
@@ -35,6 +36,7 @@ public static class CliOptionsParser
         var schema = "public";
         var tables = new List<string>();
         var dryRun = false;
+        var truncateDestination = false;
         var verbose = false;
         var yes = false;
         var batchSize = DefaultBatchSize;
@@ -104,6 +106,9 @@ public static class CliOptionsParser
                 case "--dry-run":
                     dryRun = true;
                     break;
+                case "--truncate-destination":
+                    truncateDestination = true;
+                    break;
                 case "--verbose":
                     verbose = true;
                     break;
@@ -113,7 +118,6 @@ public static class CliOptionsParser
                 case "--data-only":
                 case "--schema-only":
                     return CliParseResult.Failed($"{arg} is not implemented in the MVP yet.");
-                case "--truncate-destination":
                 case "--drop-and-recreate":
                     return CliParseResult.Failed($"{arg} is destructive and is not implemented yet.");
                 default:
@@ -142,6 +146,7 @@ public static class CliOptionsParser
             schema,
             tables,
             dryRun,
+            truncateDestination,
             verbose,
             yes,
             batchSize));

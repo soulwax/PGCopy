@@ -22,6 +22,20 @@ public sealed class PostgresSchemaInspector(NpgsqlConnection connection)
         order by ordinal_position;
         """;
 
+    public const string ForeignKeyDependenciesSql = """
+        select
+            tc.table_name,
+            ccu.table_name as depends_on_table_name
+        from information_schema.table_constraints tc
+        join information_schema.constraint_column_usage ccu
+          on ccu.constraint_schema = tc.constraint_schema
+         and ccu.constraint_name = tc.constraint_name
+        where tc.constraint_type = 'FOREIGN KEY'
+          and tc.table_schema = @schema
+          and ccu.table_schema = @schema
+        order by tc.table_name, ccu.table_name;
+        """;
+
     public async Task<IReadOnlyList<TableInfo>> GetUserTablesAsync(
         string schema,
         IReadOnlyList<string> tableFilter,
@@ -56,6 +70,32 @@ public sealed class PostgresSchemaInspector(NpgsqlConnection connection)
         }
 
         return tablesWithColumns;
+    }
+
+    public async Task<IReadOnlyList<TableDependency>> GetForeignKeyDependenciesAsync(
+        string schema,
+        IReadOnlyList<string> plannedTables,
+        CancellationToken cancellationToken)
+    {
+        var plannedTableSet = plannedTables.ToHashSet(StringComparer.Ordinal);
+        var dependencies = new List<TableDependency>();
+
+        await using var command = new NpgsqlCommand(ForeignKeyDependenciesSql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var tableName = reader.GetString(0);
+            var dependsOnTableName = reader.GetString(1);
+
+            if (plannedTableSet.Contains(tableName) && plannedTableSet.Contains(dependsOnTableName))
+            {
+                dependencies.Add(new TableDependency(tableName, dependsOnTableName));
+            }
+        }
+
+        return dependencies;
     }
 
     private async Task<IReadOnlyList<string>> GetColumnsAsync(

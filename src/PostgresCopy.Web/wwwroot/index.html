@@ -43,7 +43,17 @@
             <input id="dry-run" name="dryRun" type="checkbox">
             Dry run
           </label>
+
+          <label class="check danger-check">
+            <input id="truncate-destination" name="truncateDestination" type="checkbox">
+            Truncate destination
+          </label>
         </div>
+
+        <label id="truncate-confirm-wrap" class="truncate-confirm hidden">
+          Type TRUNCATE to confirm destination truncation
+          <input id="truncate-confirmation" name="truncateConfirmation" autocomplete="off">
+        </label>
 
         <div class="actions">
           <button id="run" type="submit">Run copy</button>

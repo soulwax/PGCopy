@@ -25,6 +25,7 @@ public static class MigrationSettingsValidator
             options.Schema,
             options.Tables,
             options.DryRun,
+            options.TruncateDestination,
             options.Verbose,
             options.Yes,
             options.BatchSize);

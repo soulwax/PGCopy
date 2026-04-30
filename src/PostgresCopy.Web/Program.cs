@@ -87,11 +87,17 @@ static async Task RunMigrationAsync(
         string.IsNullOrWhiteSpace(request.Schema) ? "public" : request.Schema.Trim(),
         ParseTables(request.Tables),
         request.DryRun,
+        request.TruncateDestination,
         false,
         false,
         CliOptionsParser.DefaultBatchSize);
 
     var settings = MigrationSettingsValidator.Validate(options);
+    if (settings.TruncateDestination
+        && !string.Equals(request.TruncateConfirmation, "TRUNCATE", StringComparison.Ordinal))
+    {
+        throw new ValidationException("Type TRUNCATE to confirm destination truncation.");
+    }
 
     logger.Step("Validating connections");
     logger.Info($"Origin: {settings.Origin.RedactedConnectionString}");
@@ -109,8 +115,12 @@ static async Task RunMigrationAsync(
         settings.Schema,
         settings.TableFilter,
         cancellationToken);
+    var dependencies = await originInspector.GetForeignKeyDependenciesAsync(
+        settings.Schema,
+        tables.Select(table => table.Name).ToArray(),
+        cancellationToken);
 
-    var plan = new MigrationPlanner().CreatePlan(settings, tables);
+    var plan = new MigrationPlanner().CreatePlan(settings, tables, dependencies);
 
     logger.Step("Checking destination schema");
     var destinationInspector = new PostgresSchemaInspector(destination);
@@ -128,6 +138,11 @@ static async Task RunMigrationAsync(
     {
         logger.Success("Dry run complete. No data was copied.");
         return;
+    }
+
+    if (settings.TruncateDestination)
+    {
+        await new DestinationTableCleaner(destination, logger).TruncateAsync(plan, cancellationToken);
     }
 
     logger.Step("Copying data");

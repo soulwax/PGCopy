@@ -24,6 +24,7 @@ public sealed class CliOptionsParserTests
         Assert.True(result.Success);
         Assert.Equal("public", result.Options!.Schema);
         Assert.False(result.Options.DryRun);
+        Assert.False(result.Options.TruncateDestination);
     }
 
     [Fact]
@@ -41,7 +42,22 @@ public sealed class CliOptionsParserTests
     }
 
     [Fact]
-    public void Parse_rejects_destructive_flags_for_mvp()
+    public void Parse_accepts_explicit_truncate_destination()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--truncate-destination",
+            "--yes"
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.TruncateDestination);
+        Assert.True(result.Options.Yes);
+    }
+
+    [Fact]
+    public void Parse_rejects_drop_and_recreate_for_mvp()
     {
         var result = CliOptionsParser.Parse([
             "--origin", "Host=origin;Database=db",

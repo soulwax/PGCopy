@@ -49,9 +49,13 @@ try
         settings.Schema,
         settings.TableFilter,
         cancellation.Token);
+    var dependencies = await originInspector.GetForeignKeyDependenciesAsync(
+        settings.Schema,
+        tables.Select(table => table.Name).ToArray(),
+        cancellation.Token);
 
     var planner = new MigrationPlanner();
-    var plan = planner.CreatePlan(settings, tables);
+    var plan = planner.CreatePlan(settings, tables, dependencies);
 
     console.Step("Checking destination schema");
     var destinationInspector = new PostgresSchemaInspector(destination);
@@ -69,6 +73,17 @@ try
     {
         console.Success("Dry run complete. No data was copied.");
         return ExitCodes.Success;
+    }
+
+    if (settings.TruncateDestination)
+    {
+        if (!DestructiveActionPrompt.ConfirmTruncateDestination(settings.Yes))
+        {
+            console.Error("Destination truncate was not confirmed. Migration cancelled.");
+            return ExitCodes.ValidationFailure;
+        }
+
+        await new DestinationTableCleaner(destination, console).TruncateAsync(plan, cancellation.Token);
     }
 
     var copier = new CopyDataMigrator(origin, destination, console);

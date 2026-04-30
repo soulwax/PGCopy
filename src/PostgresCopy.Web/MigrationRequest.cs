@@ -5,4 +5,6 @@ public sealed record MigrationRequest(
     string Destination,
     string? Schema,
     string? Tables,
-    bool DryRun);
+    bool DryRun,
+    bool TruncateDestination,
+    string? TruncateConfirmation);

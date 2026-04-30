@@ -12,7 +12,8 @@ public sealed class StreamingMigrationLogger(ChannelWriter<MigrationEvent> write
 
     public void Plan(MigrationPlan plan)
     {
-        Write("plan", $"Plan: {plan.Tables.Count} table(s) in schema {plan.Schema}.");
+        var truncate = plan.TruncateDestination ? " Destination tables will be truncated first." : string.Empty;
+        Write("plan", $"Plan: {plan.Tables.Count} table(s) in schema {plan.Schema}.{truncate}");
 
         foreach (var table in plan.Tables)
         {

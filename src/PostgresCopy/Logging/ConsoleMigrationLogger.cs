@@ -17,6 +17,7 @@ public sealed class ConsoleMigrationLogger : IMigrationLogger
         Step("Migration plan");
         Console.WriteLine($"Schema: {plan.Schema}");
         Console.WriteLine($"Mode:   {(plan.DryRun ? "dry run" : "copy data")}");
+        Console.WriteLine($"Truncate destination: {(plan.TruncateDestination ? "yes" : "no")}");
         Console.WriteLine($"Tables: {plan.Tables.Count}");
 
         foreach (var table in plan.Tables)

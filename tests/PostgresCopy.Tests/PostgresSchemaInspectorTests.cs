@@ -16,4 +16,11 @@ public sealed class PostgresSchemaInspectorTests
     {
         Assert.Contains("order by ordinal_position", PostgresSchemaInspector.ColumnsSql);
     }
+
+    [Fact]
+    public void ForeignKeyDependenciesSql_reads_foreign_key_relationships()
+    {
+        Assert.Contains("constraint_type = 'FOREIGN KEY'", PostgresSchemaInspector.ForeignKeyDependenciesSql);
+        Assert.Contains("ccu.table_name as depends_on_table_name", PostgresSchemaInspector.ForeignKeyDependenciesSql);
+    }
 }
