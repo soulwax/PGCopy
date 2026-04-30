@@ -50,7 +50,10 @@ try {
     dotnet run --project src/PostgresCopy -- `
         --origin $originUrl `
         --destination $destinationUrl `
-        --tables accounts,orders
+        --tables accounts,orders `
+        --truncate-destination `
+        --yes `
+        --verify
 
     $originCounts = Read-Counts "pgcopy-origin"
     $destinationCounts = Read-Counts "pgcopy-destination"

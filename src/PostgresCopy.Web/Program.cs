@@ -3,7 +3,6 @@ using System.Threading.Channels;
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
-using PostgresCopy.Database;
 using PostgresCopy.Logging;
 using PostgresCopy.Migration;
 using PostgresCopy.Web;
@@ -45,6 +44,7 @@ app.MapPost("/api/migrations", async (HttpContext context) =>
         catch (MigrationTableException ex)
         {
             logger.Error(ex.Message);
+            logger.Error($"Copied before failure: {ex.TablesCopiedBeforeFailure} table(s), {ex.RowsCopiedBeforeFailure} row(s).");
         }
         catch (VerificationException ex)
         {
@@ -104,61 +104,10 @@ static async Task RunMigrationAsync(
         throw new ValidationException("Type TRUNCATE to confirm destination truncation.");
     }
 
-    logger.Step("Validating connections");
-    logger.Info($"Origin: {settings.Origin.RedactedConnectionString}");
-    logger.Info($"Destination: {settings.Destination.RedactedConnectionString}");
-
-    await using var origin = new NpgsqlConnection(settings.Origin.ConnectionString);
-    await using var destination = new NpgsqlConnection(settings.Destination.ConnectionString);
-
-    await origin.OpenAsync(cancellationToken);
-    await destination.OpenAsync(cancellationToken);
-
-    logger.Step("Discovering origin tables");
-    var originInspector = new PostgresSchemaInspector(origin);
-    var tables = await originInspector.GetUserTablesAsync(
-        settings.Schema,
-        settings.TableFilter,
+    await new MigrationRunner(logger).RunAsync(
+        settings,
+        destructiveActionsConfirmed: true,
         cancellationToken);
-    var dependencies = await originInspector.GetForeignKeyDependenciesAsync(
-        settings.Schema,
-        tables.Select(table => table.Name).ToArray(),
-        cancellationToken);
-
-    var plan = new MigrationPlanner().CreatePlan(settings, tables, dependencies);
-
-    logger.Step("Checking destination schema");
-    var destinationInspector = new PostgresSchemaInspector(destination);
-    var destinationTables = await destinationInspector.GetUserTablesAsync(
-        settings.Schema,
-        plan.Tables.Select(table => table.Table.Name).ToArray(),
-        cancellationToken);
-
-    new DestinationPreflightValidator().Validate(plan, destinationTables);
-    logger.Success("Destination preflight passed.");
-
-    logger.Plan(plan);
-
-    if (settings.DryRun)
-    {
-        logger.Success("Dry run complete. No data was copied.");
-        return;
-    }
-
-    if (settings.TruncateDestination)
-    {
-        await new DestinationTableCleaner(destination, logger).TruncateAsync(plan, cancellationToken);
-    }
-
-    logger.Step("Copying data");
-    var result = await new CopyDataMigrator(origin, destination, logger).CopyAsync(plan, cancellationToken);
-
-    if (settings.Verify)
-    {
-        await new RowCountVerifier(origin, destination, logger).VerifyAsync(plan, cancellationToken);
-    }
-
-    logger.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s).");
 }
 
 static IReadOnlyList<string> ParseTables(string? tables)

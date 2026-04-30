@@ -44,6 +44,12 @@ The integration setup is a PowerShell script plus Docker Compose files, not an a
 
 Reason: database integration tests are valuable but should not make normal unit test runs heavy or fragile.
 
+## 2026-04-30: Verification Starts With Row Counts
+
+`--verify` compares origin and destination row counts after copying.
+
+Reason: row counts are cheap, understandable, and useful as a first trust check. Checksums can come later if needed.
+
 ## 2026-04-30: NuGet Sources Are Repo-Local
 
 `NuGet.config` clears inherited package sources and uses nuget.org.

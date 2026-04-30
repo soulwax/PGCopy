@@ -1,6 +1,6 @@
-# PGCopy
+# PostgresCopy
 
-PGCopy is a small C# CLI for copying PostgreSQL table data from one database to another.
+PostgresCopy is a small C# tool for copying PostgreSQL table data from one database to another.
 
 The MVP is intentionally narrow:
 
@@ -8,7 +8,7 @@ The MVP is intentionally narrow:
 - Origin and destination are supplied as connection strings or `postgres://` URLs.
 - Destination schema and tables must already exist.
 - Data is copied table by table with PostgreSQL binary `COPY`.
-- Destructive actions are not implemented yet.
+- Destination truncation is explicit and confirmed.
 
 ## Usage
 
@@ -18,7 +18,7 @@ dotnet run --project src/PostgresCopy -- \
   --destination "postgres://postgres:secret@localhost:5433/target"
 ```
 
-By default, PGCopy copies all base tables in the `public` schema.
+By default, PostgresCopy copies all base tables in the `public` schema.
 
 Useful options:
 
@@ -27,6 +27,7 @@ Useful options:
 --table users
 --tables users,orders,products
 --dry-run
+--verify
 --truncate-destination --yes
 --verbose
 ```
@@ -39,13 +40,37 @@ For a no-terminal workflow, run the small local web app:
 dotnet run --project src/PostgresCopy.Web
 ```
 
-Open the shown local URL, paste the origin and destination database URLs, choose optional schema/table filters, and click **Run copy**. The operations log streams progress as the migration runs. To empty planned destination tables first, check **Truncate destination** and type `TRUNCATE` to confirm.
+On Windows, you can also double-click `Start-PostgresCopy-Web.cmd`, or run:
+
+```powershell
+.\scripts\run-web.ps1
+```
+
+Open the shown local URL, paste the origin and destination database URLs, choose optional schema/table filters, and click **Run dry run**. The web app starts in dry-run mode and shows a compact readiness summary before you run. Uncheck **Dry run** when you are ready to copy. The operations log streams progress as the migration runs, and **Cancel** stops the active request. Keep **Verify counts** checked to compare origin and destination row counts after copying. To empty planned destination tables first, check **Truncate destination** and type `TRUNCATE` to confirm.
+
+## Copy Checklist
+
+1. Make sure the destination schema and tables already exist.
+2. Start the web app with `Start-PostgresCopy-Web.cmd`.
+3. Paste origin and destination URLs.
+4. Keep **Dry run** checked and click **Run dry run**.
+5. Review the operations log, especially destination row counts.
+6. If destination tables contain data and you want to replace it, check **Truncate destination** and type `TRUNCATE`.
+7. Uncheck **Dry run**.
+8. Keep **Verify counts** checked.
+9. Click **Run copy**.
 
 ## Safety
 
-PGCopy refuses to run when origin and destination normalize to the same database. Passwords are redacted in console output, and a migration plan is printed before any data copy starts.
+PostgresCopy refuses to run when origin and destination normalize to the same database. Passwords are redacted in console output, and a migration plan is printed before any data copy starts.
 
 This version does not drop, recreate, or overwrite schema objects. Destination tables can be truncated only with the explicit `--truncate-destination` flag or the web checkbox, and both require confirmation. If destination tables are missing or incompatible, the migration fails loudly before copying.
+
+PostgresCopy also refuses to append into non-empty destination tables. Use explicit truncation when you want to replace destination data.
+
+Dry-run mode still connects to both databases, checks destination readiness, and reports origin/destination row counts. It does not copy or truncate data.
+
+If you filter to specific tables, PostgresCopy validates that those tables exist in the origin before checking or copying the destination.
 
 ## Development
 
@@ -56,6 +81,40 @@ dotnet test
 ```
 
 The current project targets `net10.0`.
+
+Run the local non-Docker check suite:
+
+```powershell
+.\scripts\check.ps1
+```
+
+Run it with Docker integration enabled:
+
+```powershell
+.\scripts\check.ps1 -IncludeIntegration
+```
+
+## Publish
+
+Create a self-contained Windows CLI build:
+
+```powershell
+.\scripts\publish-cli.ps1
+```
+
+Create a self-contained Windows web-app build:
+
+```powershell
+.\scripts\publish-web.ps1
+```
+
+Both scripts write to `artifacts/`.
+
+## Current Release
+
+Current version: `0.1.0`
+
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for the included behavior and deliberate omissions.
 
 ## Integration Check
 
@@ -74,7 +133,7 @@ It starts an origin database with sample data, starts a destination database wit
 Because I needed a clear scope and this exact tool for myself.
 
 
-#### Why Postgresql in general?
+#### Why PostgreSQL in general?
 
 It can do the following things other databases only can dream of:
 - Store JSON documents and query them with SQL.
@@ -86,7 +145,7 @@ It can do the following things other databases only can dream of:
 
 
 #### Why a CLI?
-- It's simple and scriptable but only temporary. We will have a little user friendly window with console real time output soon.
+- It's simple and scriptable. The repo also includes a small local web app for a no-terminal workflow.
 
 
 #### Why C#?
@@ -100,5 +159,3 @@ It can do the following things other databases only can dream of:
 ## License
 
 This project is licensed under the GPLv3.0 License. See the [LICENSE](LICENSE.md) file for details.
-
-

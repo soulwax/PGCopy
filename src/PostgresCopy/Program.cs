@@ -1,7 +1,6 @@
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
-using PostgresCopy.Database;
 using PostgresCopy.Logging;
 using PostgresCopy.Migration;
 
@@ -34,67 +33,14 @@ try
 
     var settings = MigrationSettingsValidator.Validate(parseResult.Options!);
 
-    console.Step("Validating connections");
-    console.Info($"Origin:      {settings.Origin.RedactedConnectionString}");
-    console.Info($"Destination: {settings.Destination.RedactedConnectionString}");
+    var destructiveActionsConfirmed = !settings.TruncateDestination
+        || DestructiveActionPrompt.ConfirmTruncateDestination(settings.Yes);
 
-    await using var origin = new NpgsqlConnection(settings.Origin.ConnectionString);
-    await using var destination = new NpgsqlConnection(settings.Destination.ConnectionString);
-
-    await origin.OpenAsync(cancellation.Token);
-    await destination.OpenAsync(cancellation.Token);
-
-    var originInspector = new PostgresSchemaInspector(origin);
-    var tables = await originInspector.GetUserTablesAsync(
-        settings.Schema,
-        settings.TableFilter,
-        cancellation.Token);
-    var dependencies = await originInspector.GetForeignKeyDependenciesAsync(
-        settings.Schema,
-        tables.Select(table => table.Name).ToArray(),
+    await new MigrationRunner(console).RunAsync(
+        settings,
+        destructiveActionsConfirmed,
         cancellation.Token);
 
-    var planner = new MigrationPlanner();
-    var plan = planner.CreatePlan(settings, tables, dependencies);
-
-    console.Step("Checking destination schema");
-    var destinationInspector = new PostgresSchemaInspector(destination);
-    var destinationTables = await destinationInspector.GetUserTablesAsync(
-        settings.Schema,
-        plan.Tables.Select(table => table.Table.Name).ToArray(),
-        cancellation.Token);
-
-    new DestinationPreflightValidator().Validate(plan, destinationTables);
-    console.Success("Destination preflight passed.");
-
-    console.Plan(plan);
-
-    if (settings.DryRun)
-    {
-        console.Success("Dry run complete. No data was copied.");
-        return ExitCodes.Success;
-    }
-
-    if (settings.TruncateDestination)
-    {
-        if (!DestructiveActionPrompt.ConfirmTruncateDestination(settings.Yes))
-        {
-            console.Error("Destination truncate was not confirmed. Migration cancelled.");
-            return ExitCodes.ValidationFailure;
-        }
-
-        await new DestinationTableCleaner(destination, console).TruncateAsync(plan, cancellation.Token);
-    }
-
-    var copier = new CopyDataMigrator(origin, destination, console);
-    var result = await copier.CopyAsync(plan, cancellation.Token);
-
-    if (settings.Verify)
-    {
-        await new RowCountVerifier(origin, destination, console).VerifyAsync(plan, cancellation.Token);
-    }
-
-    console.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s).");
     return ExitCodes.Success;
 }
 catch (ValidationException ex)
@@ -105,6 +51,7 @@ catch (ValidationException ex)
 catch (MigrationTableException ex)
 {
     console.Error(ex.Message);
+    console.Error($"Copied before failure: {ex.TablesCopiedBeforeFailure} table(s), {ex.RowsCopiedBeforeFailure} row(s).");
     return ExitCodes.MigrationFailure;
 }
 catch (VerificationException ex)

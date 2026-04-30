@@ -44,6 +44,10 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# Repo agent instructions should be tracked even if globally ignored.
+!AGENT.md
+!AGENTS.md
+
 # MSBuild Binary and Structured Log
 *.binlog
 

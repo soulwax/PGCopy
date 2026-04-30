@@ -98,6 +98,11 @@ p {
   color: #a82121;
 }
 
+.status.cancelling {
+  background: #fff4dd;
+  color: #8b5a00;
+}
+
 .form {
   display: grid;
   gap: 18px;
@@ -164,6 +169,37 @@ input:focus {
   padding-left: 12px;
 }
 
+.readiness {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9dee7;
+  border-radius: 6px;
+  background: #fbfcfd;
+}
+
+.readiness div {
+  min-width: 0;
+}
+
+.readiness span {
+  display: block;
+  color: #6a7483;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.readiness strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #18212f;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hidden {
   display: none;
 }
@@ -188,6 +224,11 @@ button[type="submit"] {
   background: #165fbd;
   color: #ffffff;
   font-weight: 700;
+}
+
+#cancel {
+  border-color: #c43d3d;
+  color: #a82121;
 }
 
 button:disabled {
@@ -275,6 +316,10 @@ button:disabled {
 
   .options {
     grid-template-columns: 1fr;
+  }
+
+  .readiness {
+    grid-template-columns: 1fr 1fr;
   }
 
   .log li {

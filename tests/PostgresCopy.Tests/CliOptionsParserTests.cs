@@ -25,6 +25,7 @@ public sealed class CliOptionsParserTests
         Assert.Equal("public", result.Options!.Schema);
         Assert.False(result.Options.DryRun);
         Assert.False(result.Options.TruncateDestination);
+        Assert.False(result.Options.Verify);
     }
 
     [Fact]
@@ -54,6 +55,19 @@ public sealed class CliOptionsParserTests
         Assert.True(result.Success);
         Assert.True(result.Options!.TruncateDestination);
         Assert.True(result.Options.Yes);
+    }
+
+    [Fact]
+    public void Parse_accepts_verify()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--verify"
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.Verify);
     }
 
     [Fact]

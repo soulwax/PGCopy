@@ -10,6 +10,12 @@ dotnet build PostgresCopy.sln
 dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
 ```
 
+Or run the standard non-Docker check suite:
+
+```powershell
+.\scripts\check.ps1
+```
+
 ## CLI Smoke Checks
 
 ```powershell
@@ -23,6 +29,12 @@ The second command should fail because origin and destination are identical.
 
 ```powershell
 dotnet run --project src\PostgresCopy.Web --urls http://localhost:5087
+```
+
+Or use the launcher:
+
+```powershell
+.\scripts\run-web.ps1
 ```
 
 Open:
@@ -72,6 +84,15 @@ The script should:
 3. Seed destination with matching empty tables.
 4. Run PostgresCopy.
 5. Compare row counts.
+
+## Publish
+
+```powershell
+.\scripts\publish-cli.ps1
+.\scripts\publish-web.ps1
+```
+
+Outputs go under `artifacts/`, which is ignored by git.
 
 ## PostgreSQL Client Tools
 

@@ -20,12 +20,12 @@
       <form id="copy-form" class="form">
         <label>
           Origin database URL
-          <textarea id="origin" name="origin" rows="3" autocomplete="off" spellcheck="false" required></textarea>
+          <textarea id="origin" name="origin" rows="3" autocomplete="off" spellcheck="false" placeholder="postgres://user:password@localhost:5432/source" required></textarea>
         </label>
 
         <label>
           Destination database URL
-          <textarea id="destination" name="destination" rows="3" autocomplete="off" spellcheck="false" required></textarea>
+          <textarea id="destination" name="destination" rows="3" autocomplete="off" spellcheck="false" placeholder="postgres://user:password@localhost:5433/target" required></textarea>
         </label>
 
         <div class="options">
@@ -40,8 +40,13 @@
           </label>
 
           <label class="check">
-            <input id="dry-run" name="dryRun" type="checkbox">
+            <input id="dry-run" name="dryRun" type="checkbox" checked>
             Dry run
+          </label>
+
+          <label class="check">
+            <input id="verify" name="verify" type="checkbox" checked>
+            Verify counts
           </label>
 
           <label class="check danger-check">
@@ -55,8 +60,28 @@
           <input id="truncate-confirmation" name="truncateConfirmation" autocomplete="off">
         </label>
 
+        <div class="readiness" aria-live="polite">
+          <div>
+            <span>Mode</span>
+            <strong id="ready-mode">Dry run</strong>
+          </div>
+          <div>
+            <span>Schema</span>
+            <strong id="ready-schema">public</strong>
+          </div>
+          <div>
+            <span>Tables</span>
+            <strong id="ready-tables">All</strong>
+          </div>
+          <div>
+            <span>Destination</span>
+            <strong id="ready-destination">Preserve</strong>
+          </div>
+        </div>
+
         <div class="actions">
-          <button id="run" type="submit">Run copy</button>
+          <button id="run" type="submit">Run dry run</button>
+          <button id="cancel" type="button" disabled>Cancel</button>
           <button id="clear" type="button">Clear log</button>
         </div>
       </form>

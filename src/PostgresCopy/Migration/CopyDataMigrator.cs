@@ -27,7 +27,12 @@ public sealed class CopyDataMigrator(
             catch (Exception ex)
             {
                 logger.TableFailed(tablePlan.QualifiedName, ex.Message);
-                throw new MigrationTableException(tablePlan.QualifiedName, ex.Message, ex);
+                throw new MigrationTableException(
+                    tablePlan.QualifiedName,
+                    ex.Message,
+                    ex,
+                    copiedTables,
+                    totalRows);
             }
 
             totalRows += rowCount;

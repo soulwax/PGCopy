@@ -9,11 +9,12 @@ The user can:
 1. Provide origin and destination PostgreSQL URLs.
 2. See a clear, redacted plan.
 3. Run dry-run without data mutation.
-4. Copy selected or all public tables.
-5. Watch per-table progress.
-6. Know exactly what failed if a table fails.
-7. Repeat a migration by explicitly truncating destination tables.
-8. Use the same core behavior from CLI or local web UI.
+4. See origin and destination row counts during dry-run.
+5. Copy selected or all public tables.
+6. Watch per-table progress.
+7. Know exactly what failed and how far the copy got if a table fails.
+8. Repeat a migration by explicitly truncating destination tables.
+9. Use the same core behavior from CLI or local web UI.
 
 ## Safety Quality
 
@@ -24,6 +25,7 @@ The app should:
 - avoid raw password output
 - quote identifiers
 - require confirmation for destructive actions
+- refuse non-empty destination tables unless truncation is explicit
 - avoid silent table skips
 - leave schema-copy behavior separate until intentionally implemented
 
@@ -55,6 +57,7 @@ Integration tests should cover the facts only PostgreSQL can prove:
 - truncation permits repeat runs
 - sequence synchronization prevents immediate identity collisions
 - row counts match after copy
+- `--verify` fails loudly when counts differ
 
 ## Signs of Drift
 

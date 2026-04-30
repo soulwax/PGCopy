@@ -18,6 +18,7 @@ public sealed class MigrationPlannerTests
             false,
             false,
             false,
+            false,
             10000);
 
         var tables = new[]
@@ -40,6 +41,7 @@ public sealed class MigrationPlannerTests
             new DatabaseEndpoint("Host=dest;Database=db", "Host=dest;Database=db", "dest"),
             "public",
             [],
+            false,
             false,
             false,
             false,

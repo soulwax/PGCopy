@@ -47,7 +47,7 @@ public sealed class DestinationPreflightValidatorTests
     [Fact]
     public void Validate_fails_when_plan_has_no_tables()
     {
-        var plan = new MigrationPlan("public", [], false, false);
+        var plan = new MigrationPlan("public", [], false, false, false);
 
         var ex = Assert.Throws<ValidationException>(() =>
             new DestinationPreflightValidator().Validate(plan, []));
@@ -60,6 +60,7 @@ public sealed class DestinationPreflightValidatorTests
         return new MigrationPlan(
             "public",
             tables.Select(table => new TableMigrationPlan(table)).ToArray(),
+            false,
             false,
             false);
     }
