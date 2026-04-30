@@ -30,6 +30,16 @@ Useful options:
 --verbose
 ```
 
+## Local Web App
+
+For a no-terminal workflow, run the small local web app:
+
+```bash
+dotnet run --project src/PostgresCopy.Web
+```
+
+Open the shown local URL, paste the origin and destination database URLs, choose optional schema/table filters, and click **Run copy**. The operations log streams progress as the migration runs.
+
 ## Safety
 
 PostgresCopy refuses to run when origin and destination normalize to the same database. Passwords are redacted in console output, and a migration plan is printed before any data copy starts.
@@ -45,3 +55,13 @@ dotnet test
 ```
 
 The current project targets `net10.0`.
+
+## Integration Check
+
+The repo includes a small Docker-backed integration check with two PostgreSQL databases:
+
+```powershell
+.\scripts\integration-test.ps1
+```
+
+It starts an origin database with sample data, starts a destination database with matching empty tables, runs PostgresCopy, then compares row counts.

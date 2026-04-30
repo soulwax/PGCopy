@@ -1,0 +1,22 @@
+services:
+  origin:
+    image: postgres:17-alpine
+    container_name: pgcopy-origin
+    environment:
+      POSTGRES_DB: pgcopy
+      POSTGRES_PASSWORD: test
+    ports:
+      - "55432:5432"
+    volumes:
+      - ./origin.sql:/docker-entrypoint-initdb.d/001-origin.sql:ro
+
+  destination:
+    image: postgres:17-alpine
+    container_name: pgcopy-destination
+    environment:
+      POSTGRES_DB: pgcopy
+      POSTGRES_PASSWORD: test
+    ports:
+      - "55433:5432"
+    volumes:
+      - ./destination.sql:/docker-entrypoint-initdb.d/001-destination.sql:ro

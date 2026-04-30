@@ -5,5 +5,5 @@ public sealed record TableInfo(
     string Name,
     IReadOnlyList<string> Columns)
 {
-    public string QualifiedName => $"{Schema}.{Name}";
+    public string QualifiedName => SqlIdentifier.Qualify(Schema, Name);
 }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostgresCopy</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="panel">
+      <div class="title-row">
+        <div>
+          <h1>PostgresCopy</h1>
+          <p>Copy PostgreSQL table data from one database to another.</p>
+        </div>
+        <span id="status" class="status idle">Idle</span>
+      </div>
+
+      <form id="copy-form" class="form">
+        <label>
+          Origin database URL
+          <textarea id="origin" name="origin" rows="3" autocomplete="off" spellcheck="false" required></textarea>
+        </label>
+
+        <label>
+          Destination database URL
+          <textarea id="destination" name="destination" rows="3" autocomplete="off" spellcheck="false" required></textarea>
+        </label>
+
+        <div class="options">
+          <label>
+            Schema
+            <input id="schema" name="schema" value="public" autocomplete="off">
+          </label>
+
+          <label>
+            Tables
+            <input id="tables" name="tables" placeholder="accounts,orders" autocomplete="off">
+          </label>
+
+          <label class="check">
+            <input id="dry-run" name="dryRun" type="checkbox">
+            Dry run
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="run" type="submit">Run copy</button>
+          <button id="clear" type="button">Clear log</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="log-panel" aria-live="polite">
+      <div class="log-header">
+        <h2>Operations</h2>
+        <span id="summary">No run yet</span>
+      </div>
+      <ol id="log" class="log"></ol>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

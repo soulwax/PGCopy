@@ -28,6 +28,6 @@ public sealed class MigrationPlannerTests
         var plan = new MigrationPlanner().CreatePlan(settings, tables);
 
         Assert.True(plan.DryRun);
-        Assert.Equal(["public.users", "public.orders"], plan.Tables.Select(table => table.QualifiedName));
+        Assert.Equal(["\"public\".\"users\"", "\"public\".\"orders\""], plan.Tables.Select(table => table.QualifiedName));
     }
 }

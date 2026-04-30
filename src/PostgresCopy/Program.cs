@@ -16,6 +16,8 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 try
 {
+    args = InteractiveCliPrompt.FillMissingRequiredOptions(args);
+
     var parseResult = CliOptionsParser.Parse(args);
     if (parseResult.ShowHelp)
     {
@@ -42,14 +44,24 @@ try
     await origin.OpenAsync(cancellation.Token);
     await destination.OpenAsync(cancellation.Token);
 
-    var inspector = new PostgresSchemaInspector(origin);
-    var tables = await inspector.GetUserTablesAsync(
+    var originInspector = new PostgresSchemaInspector(origin);
+    var tables = await originInspector.GetUserTablesAsync(
         settings.Schema,
         settings.TableFilter,
         cancellation.Token);
 
     var planner = new MigrationPlanner();
     var plan = planner.CreatePlan(settings, tables);
+
+    console.Step("Checking destination schema");
+    var destinationInspector = new PostgresSchemaInspector(destination);
+    var destinationTables = await destinationInspector.GetUserTablesAsync(
+        settings.Schema,
+        plan.Tables.Select(table => table.Table.Name).ToArray(),
+        cancellation.Token);
+
+    new DestinationPreflightValidator().Validate(plan, destinationTables);
+    console.Success("Destination preflight passed.");
 
     console.Plan(plan);
 

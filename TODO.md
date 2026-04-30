@@ -4,18 +4,19 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Next
 
-- Add destination preflight checks before copying:
-  - destination table exists
-  - destination columns match origin columns
-  - fail before any data copy if the plan is unsafe
-- Add a Docker Compose integration setup with two PostgreSQL databases.
-- Add seed SQL for a tiny realistic database with a foreign key.
-- Add one integration test or script that copies data and compares row counts.
+- [x] Add destination preflight checks before copying:
+  - [x] destination table exists
+  - [x] destination columns match origin columns
+  - [x] fail before any data copy if the plan is unsafe
+- [x] Add a Docker Compose integration setup with two PostgreSQL databases.
+- [x] Add seed SQL for a tiny realistic database with a foreign key.
+- [x] Add one integration test or script that copies data and compares row counts.
 
 ## CLI
 
-- Keep `--origin` and `--destination` as the primary workflow.
-- Add a light prompt mode only when required values are missing.
+- [x] Keep `--origin` and `--destination` as the primary workflow.
+- [x] Add a light prompt mode only when required values are missing.
+- [x] Add a small local web app for no-terminal use.
 - Improve `--dry-run` output with row counts and destination readiness.
 - Keep future flags opt-in and obvious.
 
