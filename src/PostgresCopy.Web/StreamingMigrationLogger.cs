@@ -13,7 +13,8 @@ public sealed class StreamingMigrationLogger(ChannelWriter<MigrationEvent> write
     public void Plan(MigrationPlan plan)
     {
         var truncate = plan.TruncateDestination ? " Destination tables will be truncated first." : string.Empty;
-        Write("plan", $"Plan: {plan.Tables.Count} table(s) in schema {plan.Schema}.{truncate}");
+        var verify = plan.Verify ? " Row counts will be verified." : string.Empty;
+        Write("plan", $"Plan: {plan.Tables.Count} table(s) in schema {plan.Schema}.{truncate}{verify}");
 
         foreach (var table in plan.Tables)
         {
@@ -26,9 +27,9 @@ public sealed class StreamingMigrationLogger(ChannelWriter<MigrationEvent> write
         Write("table-start", $"Copying {tableName}", tableName, rows);
     }
 
-    public void TableDone(string tableName, long rows)
+    public void TableDone(string tableName, long rows, TimeSpan elapsed)
     {
-        Write("table-done", $"Copied {tableName}", tableName, rows);
+        Write("table-done", $"Copied {tableName} in {elapsed.TotalSeconds:0.0}s", tableName, rows);
     }
 
     public void TableFailed(string tableName, string message)

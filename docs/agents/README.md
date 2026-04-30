@@ -1,0 +1,10 @@
+# Agent Notes
+
+This directory exists to help future coding agents solve the right problem faster.
+
+- `PROBLEM_SOLVING.md` gives the working loop.
+- `RUNBOOK.md` gives concrete commands.
+- `DECISIONS.md` records decisions that should not be rediscovered every session.
+- `QUALITY_BAR.md` defines what "productive enough" means for this app.
+
+Keep these docs short enough to read, but specific enough to prevent accidental complexity.

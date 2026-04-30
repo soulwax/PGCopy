@@ -18,6 +18,7 @@ public sealed class ConsoleMigrationLogger : IMigrationLogger
         Console.WriteLine($"Schema: {plan.Schema}");
         Console.WriteLine($"Mode:   {(plan.DryRun ? "dry run" : "copy data")}");
         Console.WriteLine($"Truncate destination: {(plan.TruncateDestination ? "yes" : "no")}");
+        Console.WriteLine($"Verify row counts: {(plan.Verify ? "yes" : "no")}");
         Console.WriteLine($"Tables: {plan.Tables.Count}");
 
         foreach (var table in plan.Tables)
@@ -35,9 +36,9 @@ public sealed class ConsoleMigrationLogger : IMigrationLogger
         Console.WriteLine($"Copying {tableName} ({rows} row(s))...");
     }
 
-    public void TableDone(string tableName, long rows)
+    public void TableDone(string tableName, long rows, TimeSpan elapsed)
     {
-        Console.WriteLine($"Copied  {tableName} ({rows} row(s)).");
+        Console.WriteLine($"Copied  {tableName} ({rows} row(s) in {elapsed.TotalSeconds:0.0}s).");
     }
 
     public void TableFailed(string tableName, string message)

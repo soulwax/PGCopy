@@ -19,6 +19,7 @@ public static class CliOptionsParser
           --batch-size <number>   Reserved for future row batching. Defaults to 10000.
           --dry-run               Print the plan without copying data.
           --truncate-destination  Empty planned destination tables before copying.
+          --verify                Compare origin and destination row counts after copying.
           --yes                   Skip confirmation for destructive actions.
           --verbose               Show stack traces for unexpected failures.
           --help                  Show help.
@@ -37,6 +38,7 @@ public static class CliOptionsParser
         var tables = new List<string>();
         var dryRun = false;
         var truncateDestination = false;
+        var verify = false;
         var verbose = false;
         var yes = false;
         var batchSize = DefaultBatchSize;
@@ -109,6 +111,9 @@ public static class CliOptionsParser
                 case "--truncate-destination":
                     truncateDestination = true;
                     break;
+                case "--verify":
+                    verify = true;
+                    break;
                 case "--verbose":
                     verbose = true;
                     break;
@@ -147,6 +152,7 @@ public static class CliOptionsParser
             tables,
             dryRun,
             truncateDestination,
+            verify,
             verbose,
             yes,
             batchSize));

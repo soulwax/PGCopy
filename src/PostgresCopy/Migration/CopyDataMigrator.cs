@@ -16,8 +16,9 @@ public sealed class CopyDataMigrator(
 
         foreach (var tablePlan in plan.Tables)
         {
-            var rowCount = await CountRowsAsync(origin, tablePlan.Table, cancellationToken);
+            var rowCount = await TableRowCounter.CountAsync(origin, tablePlan.Table, cancellationToken);
             logger.TableStart(tablePlan.QualifiedName, rowCount);
+            var startedAt = DateTimeOffset.UtcNow;
 
             try
             {
@@ -31,21 +32,11 @@ public sealed class CopyDataMigrator(
 
             totalRows += rowCount;
             copiedTables++;
-            logger.TableDone(tablePlan.QualifiedName, rowCount);
+            await new SequenceSynchronizer(destination, logger).SynchronizeAsync(tablePlan.Table, cancellationToken);
+            logger.TableDone(tablePlan.QualifiedName, rowCount, DateTimeOffset.UtcNow - startedAt);
         }
 
         return new MigrationResult(copiedTables, totalRows);
-    }
-
-    private static async Task<long> CountRowsAsync(
-        NpgsqlConnection connection,
-        TableInfo table,
-        CancellationToken cancellationToken)
-    {
-        var sql = $"select count(*) from {SqlIdentifier.Qualify(table.Schema, table.Name)};";
-        await using var command = new NpgsqlCommand(sql, connection);
-        var value = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt64(value);
     }
 
     private async Task CopyTableAsync(TableInfo table, CancellationToken cancellationToken)

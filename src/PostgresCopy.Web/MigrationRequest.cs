@@ -6,5 +6,6 @@ public sealed record MigrationRequest(
     string? Schema,
     string? Tables,
     bool DryRun,
+    bool Verify,
     bool TruncateDestination,
     string? TruncateConfirmation);

@@ -15,7 +15,12 @@ public sealed class MigrationPlanner
             .Select(table => new TableMigrationPlan(table))
             .ToArray();
 
-        return new MigrationPlan(settings.Schema, plannedTables, settings.DryRun, settings.TruncateDestination);
+        return new MigrationPlan(
+            settings.Schema,
+            plannedTables,
+            settings.DryRun,
+            settings.TruncateDestination,
+            settings.Verify);
     }
 
     private static IReadOnlyList<TableInfo> OrderByDependencies(

@@ -7,6 +7,7 @@ public sealed record MigrationSettings(
     IReadOnlyList<string> TableFilter,
     bool DryRun,
     bool TruncateDestination,
+    bool Verify,
     bool Verbose,
     bool Yes,
     int BatchSize);

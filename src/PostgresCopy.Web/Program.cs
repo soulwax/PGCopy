@@ -46,6 +46,10 @@ app.MapPost("/api/migrations", async (HttpContext context) =>
         {
             logger.Error(ex.Message);
         }
+        catch (VerificationException ex)
+        {
+            logger.Error(ex.Message);
+        }
         catch (PostgresException ex)
         {
             logger.Error($"PostgreSQL error: {ex.MessageText}");
@@ -88,6 +92,7 @@ static async Task RunMigrationAsync(
         ParseTables(request.Tables),
         request.DryRun,
         request.TruncateDestination,
+        request.Verify,
         false,
         false,
         CliOptionsParser.DefaultBatchSize);
@@ -147,6 +152,12 @@ static async Task RunMigrationAsync(
 
     logger.Step("Copying data");
     var result = await new CopyDataMigrator(origin, destination, logger).CopyAsync(plan, cancellationToken);
+
+    if (settings.Verify)
+    {
+        await new RowCountVerifier(origin, destination, logger).VerifyAsync(plan, cancellationToken);
+    }
+
     logger.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s).");
 }
 

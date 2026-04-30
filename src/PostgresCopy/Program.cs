@@ -89,6 +89,11 @@ try
     var copier = new CopyDataMigrator(origin, destination, console);
     var result = await copier.CopyAsync(plan, cancellation.Token);
 
+    if (settings.Verify)
+    {
+        await new RowCountVerifier(origin, destination, console).VerifyAsync(plan, cancellation.Token);
+    }
+
     console.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s).");
     return ExitCodes.Success;
 }
@@ -98,6 +103,11 @@ catch (ValidationException ex)
     return ExitCodes.ValidationFailure;
 }
 catch (MigrationTableException ex)
+{
+    console.Error(ex.Message);
+    return ExitCodes.MigrationFailure;
+}
+catch (VerificationException ex)
 {
     console.Error(ex.Message);
     return ExitCodes.MigrationFailure;

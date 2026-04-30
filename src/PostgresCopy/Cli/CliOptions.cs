@@ -7,6 +7,7 @@ public sealed record CliOptions(
     IReadOnlyList<string> Tables,
     bool DryRun,
     bool TruncateDestination,
+    bool Verify,
     bool Verbose,
     bool Yes,
     int BatchSize);

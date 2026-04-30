@@ -22,16 +22,16 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Safety
 
-- Add `--truncate-destination` with a clear confirmation prompt.
-- Require `--yes` for destructive actions in non-interactive use.
+- [x] Add `--truncate-destination` with a clear confirmation prompt.
+- [x] Require `--yes` for destructive actions in non-interactive use.
 - Print a final summary when a migration fails partway through.
 - Keep raw connection strings and passwords out of logs.
 
 ## Copy Behavior
 
-- Copy parent tables before child tables when foreign keys are discoverable.
+- [x] Copy parent tables before child tables when foreign keys are discoverable.
 - Add simple row-count verification with `--verify`.
-- Report elapsed time and rows copied per table.
+- [x] Report elapsed time and rows copied per table.
 - Keep schema copying separate from data copying.
 
 ## Later
