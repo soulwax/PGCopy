@@ -4,7 +4,7 @@ This is a lightweight decision log for future agents.
 
 ## 2026-04-30: Keep the CLI as the Core
 
-The CLI remains first-class and scriptable. The web app is a thin local wrapper around the same core migration code.
+The CLI remains first-class and scriptable. Any no-terminal UI must stay a thin wrapper around the same core migration code.
 
 Reason: PostgresCopy should work in automation and should also be easy to use without a terminal.
 
@@ -14,11 +14,11 @@ Projects target `net10.0`.
 
 Reason: the user requested the latest .NET framework available in this environment.
 
-## 2026-04-30: Add a Local Web App, Not a Desktop App
+## 2026-04-30: Use a Native C# Desktop GUI
 
-The no-terminal experience lives in `src/PostgresCopy.Web`.
+The no-terminal experience is a small native C# desktop GUI in `src/PostgresCopy.Desktop`. The current `src/PostgresCopy.Web` project is an interim prototype and should not become the long-term product UI.
 
-Reason: a local single-page web app is simple, cross-platform enough for .NET users, easy to inspect, and avoids GUI framework overhead.
+Reason: PostgresCopy only needs a few inputs, clear options, and live output. A localhost web server is unnecessary machinery for that job, while a native desktop shell keeps the app closer to a simple C# utility.
 
 ## 2026-04-30: Destination Schema Must Match for Now
 
@@ -28,7 +28,7 @@ Reason: schema generation is a separate problem. Keeping it separate makes data 
 
 ## 2026-04-30: Destructive Actions Are Explicit
 
-Destination truncation is allowed only through `--truncate-destination` or the web checkbox. CLI uses `--yes` or an interactive `TRUNCATE` confirmation. Web requires typing `TRUNCATE`.
+Destination truncation is allowed only through `--truncate-destination` or an explicit GUI checkbox. CLI uses `--yes` or an interactive `TRUNCATE` confirmation. GUI paths require typing `TRUNCATE`.
 
 Reason: productive repeated migrations need a way to empty destination tables, but destructive behavior must never be surprising.
 

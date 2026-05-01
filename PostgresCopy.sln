@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostgresCopy.Tests", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostgresCopy.Web", "src\PostgresCopy.Web\PostgresCopy.Web.csproj", "{C6C09169-84AF-48CF-B31D-B114F624D18A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostgresCopy.Desktop", "src\PostgresCopy.Desktop\PostgresCopy.Desktop.csproj", "{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +61,18 @@ Global
 		{C6C09169-84AF-48CF-B31D-B114F624D18A}.Release|x64.Build.0 = Release|Any CPU
 		{C6C09169-84AF-48CF-B31D-B114F624D18A}.Release|x86.ActiveCfg = Release|Any CPU
 		{C6C09169-84AF-48CF-B31D-B114F624D18A}.Release|x86.Build.0 = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|x64.Build.0 = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Debug|x86.Build.0 = Debug|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|x64.ActiveCfg = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|x64.Build.0 = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|x86.ActiveCfg = Release|Any CPU
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,5 +81,6 @@ Global
 		{0EFCA6CA-DAF8-400D-A648-074E2CED819F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{8E41986B-764E-41A2-9C20-2864FFFB9D29} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{C6C09169-84AF-48CF-B31D-B114F624D18A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{2E35BED9-CB56-40D2-BE1F-0CF2546041A6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

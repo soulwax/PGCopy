@@ -17,13 +17,29 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 - [x] Keep `--origin` and `--destination` as the primary workflow.
 - [x] Add a light prompt mode only when required values are missing.
-- [x] Add a small local web app for no-terminal use.
+- [x] Improve `--dry-run` output with row counts and destination readiness.
+- [x] Keep future flags opt-in and obvious.
+
+## Native GUI
+
+- [x] Add a small native C# desktop app for no-terminal use.
+- [x] Keep the GUI to one window: origin URL, destination URL, sensible options, progress log.
+- [x] Use the existing migration core instead of duplicating copy logic.
+- [x] Start GUI runs in dry-run mode.
+- [x] Add a cancel button for active GUI runs.
+- [x] Require typing `TRUNCATE` before destructive GUI truncation.
+- [x] Do not store credentials or run a background service.
+- [x] Add source and published desktop launchers.
+- [x] Add a desktop publish script.
+
+## Interim Web Prototype
+
+- [x] Add a small local web app to prove the no-terminal workflow.
 - [x] Add a one-command web launcher.
 - [x] Add a one-command published web launcher.
 - [x] Add a web cancel button for active runs.
 - [x] Make web runs start safely in dry-run mode with a readiness summary.
-- [x] Improve `--dry-run` output with row counts and destination readiness.
-- [x] Keep future flags opt-in and obvious.
+- [ ] Replace or de-emphasize the web prototype once the native GUI exists.
 
 ## Safety
 
@@ -42,14 +58,14 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Later
 
-- Consider a small Spectre.Console progress view.
+- Consider CLI progress polish only after the native GUI direction is settled.
 - Add `--schema-only` and `--data-only` once the basic copy path is solid.
 - Add schema creation only as an explicit mode.
 - [x] Add publish scripts for single-file builds.
 
 ## Not Planned
 
-- No heavyweight GUI, hosted dashboard, or background service.
+- No heavyweight GUI, hosted dashboard, local web server as the final UI, or background service.
 - No ORM.
 - No non-PostgreSQL engines.
 - No hidden services.

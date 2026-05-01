@@ -25,7 +25,36 @@ dotnet run --project src\PostgresCopy -- --origin "postgres://user:secret@localh
 
 The second command should fail because origin and destination are identical.
 
-## Web App
+## Native Desktop App
+
+The no-terminal app is a small native C# desktop GUI over the shared migration core.
+
+```powershell
+dotnet run --project src\PostgresCopy.Desktop
+```
+
+Or use the launcher:
+
+```powershell
+.\Start-PostgresCopy-Desktop.cmd
+```
+
+Expected native GUI controls:
+
+- origin database URL
+- destination database URL
+- schema
+- tables
+- dry run
+- truncate destination with `TRUNCATE` confirmation
+- verify counts
+- run copy
+- cancel
+- operations log
+
+## Interim Web Prototype
+
+The current web project is a temporary prototype, not the desired long-term GUI. Use it only while it remains useful for manual no-terminal testing.
 
 ```powershell
 dotnet run --project src\PostgresCopy.Web --urls http://localhost:5087
@@ -55,7 +84,7 @@ Expected controls:
 - clear log
 - operations log
 
-If the build fails with locked DLLs, check for the running web process:
+If the build fails with locked DLLs, check for a running interim web process:
 
 ```powershell
 Get-NetTCPConnection -LocalPort 5087 -ErrorAction SilentlyContinue
@@ -89,6 +118,7 @@ The script should:
 
 ```powershell
 .\scripts\publish-cli.ps1
+.\scripts\publish-desktop.ps1
 .\scripts\publish-web.ps1
 ```
 

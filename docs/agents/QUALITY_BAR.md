@@ -14,7 +14,7 @@ The user can:
 6. Watch per-table progress.
 7. Know exactly what failed and how far the copy got if a table fails.
 8. Repeat a migration by explicitly truncating destination tables.
-9. Use the same core behavior from CLI or local web UI.
+9. Use the same core behavior from CLI or native GUI.
 
 ## Safety Quality
 
@@ -38,13 +38,16 @@ The CLI should:
 - avoid noisy stack traces unless `--verbose`
 - print a concise final summary
 
-The web UI should:
+The native GUI should:
 
 - fit in one window
 - keep connection strings visible only in input fields
 - show live operations in chronological order
 - expose only sensible options
 - make dangerous options visually and procedurally explicit
+- avoid requiring a separate localhost web server
+
+The interim web prototype should stay thin and should not grow beyond proving the no-terminal workflow.
 
 ## Test Quality
 
@@ -67,5 +70,6 @@ Pause and simplify if a change introduces:
 - provider abstractions for non-PostgreSQL databases
 - persistent credential storage
 - background daemons
+- local web server requirements for the final GUI
 - complex config files before CLI flags are stable
 - UI pages that do not directly help run or inspect a migration

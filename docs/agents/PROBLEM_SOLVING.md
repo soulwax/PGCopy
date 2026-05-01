@@ -23,9 +23,10 @@ Before changing UI or CLI code, ask whether the behavior belongs in:
 - `Database` for PostgreSQL inspection and SQL helpers
 - `Migration` for planning, copying, cleanup, and verification
 - `Logging` for progress events
-- `PostgresCopy.Web` for local browser interaction only
+- `PostgresCopy.Desktop` for desktop interaction
+- `PostgresCopy.Web` for interim browser interaction only while it exists
 
-If both CLI and web need it, put it in the core project.
+If CLI, native GUI, or interim web need it, put it in the core project.
 
 ## 3. Protect Data First
 
@@ -75,7 +76,8 @@ If the user can notice it, update at least one of:
 
 - `README.md`
 - `TODO.md`
-- web UI labels
+- native GUI labels
+- interim web UI labels while that prototype exists
 - CLI help text
 - integration script notes
 

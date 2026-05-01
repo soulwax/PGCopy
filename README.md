@@ -34,17 +34,22 @@ Useful options:
 
 ## Try It Now
 
-Run the GUI from source:
+Run the native desktop app:
 
 ```powershell
-.\Start-PostgresCopy-Web.cmd
+.\Start-PostgresCopy-Desktop.cmd
 ```
 
-Or build and run the self-contained GUI:
+Run the CLI from source:
+
+```bash
+dotnet run --project src/PostgresCopy -- --help
+```
+
+Build the self-contained CLI:
 
 ```powershell
-.\scripts\publish-web.ps1
-.\Start-PostgresCopy-Web-Published.cmd
+.\scripts\publish-cli.ps1
 ```
 
 The published CLI lands at:
@@ -53,28 +58,52 @@ The published CLI lands at:
 .\artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe --help
 ```
 
-## Local Web App
+## Native Desktop App
 
-For a no-terminal workflow, run the small local web app:
+For no-terminal use, PostgresCopy includes a small native C# desktop app over the existing migration core. It does not need a separate local web server just to collect an origin URL, a destination URL, options, and a progress log.
 
-```bash
-dotnet run --project src/PostgresCopy.Web
-```
+The native GUI stays as small as the CLI:
 
-On Windows, you can also double-click `Start-PostgresCopy-Web.cmd`, or run:
+- one window
+- origin and destination URL fields
+- schema/table filters
+- dry-run first
+- verify counts
+- explicit destination truncation with `TRUNCATE` confirmation
+- live operations log
+- cancel button
+- no stored credentials
+- no background service
+
+Run it from source:
 
 ```powershell
-.\scripts\run-web.ps1
+.\Start-PostgresCopy-Desktop.cmd
 ```
 
-Open the shown local URL, paste the origin and destination database URLs, choose optional schema/table filters, and click **Run dry run**. The web app starts in dry-run mode and shows a compact readiness summary before you run. Uncheck **Dry run** when you are ready to copy. The operations log streams progress as the migration runs, and **Cancel** stops the active request. Keep **Verify counts** checked to compare origin and destination row counts after copying. To empty planned destination tables first, check **Truncate destination** and type `TRUNCATE` to confirm.
+Or publish and run the self-contained desktop app:
 
-The web app is local only. It does not store database URLs or run background services.
+```powershell
+.\scripts\publish-desktop.ps1
+.\Start-PostgresCopy-Desktop-Published.cmd
+```
+
+The current `src/PostgresCopy.Web` project is an interim prototype for the no-terminal workflow. Keep it useful while it exists, but do not treat a localhost web app as the preferred final UI.
+
+## Interim Web Prototype
+
+Until the native desktop app exists, the local web prototype can still be run for manual testing:
+
+```powershell
+.\Start-PostgresCopy-Web.cmd
+```
+
+It is local only, does not store database URLs, and should not grow into a hosted dashboard or background service.
 
 ## Copy Checklist
 
 1. Make sure the destination schema and tables already exist.
-2. Start the web app with `Start-PostgresCopy-Web.cmd`.
+2. Start the native desktop app, CLI, or interim web prototype.
 3. Paste origin and destination URLs.
 4. Keep **Dry run** checked and click **Run dry run**.
 5. Review the operations log, especially destination row counts.
@@ -87,7 +116,7 @@ The web app is local only. It does not store database URLs or run background ser
 
 PostgresCopy refuses to run when origin and destination normalize to the same database. Passwords are redacted in console output, and a migration plan is printed before any data copy starts.
 
-This version does not drop, recreate, or overwrite schema objects. Destination tables can be truncated only with the explicit `--truncate-destination` flag or the web checkbox, and both require confirmation. If destination tables are missing or incompatible, the migration fails loudly before copying.
+This version does not drop, recreate, or overwrite schema objects. Destination tables can be truncated only with the explicit `--truncate-destination` flag or an equivalent GUI checkbox, and both require confirmation. If destination tables are missing or incompatible, the migration fails loudly before copying.
 
 PostgresCopy also refuses to append into non-empty destination tables. Use explicit truncation when you want to replace destination data.
 
@@ -125,21 +154,19 @@ Create a self-contained Windows CLI build:
 .\scripts\publish-cli.ps1
 ```
 
-Create a self-contained Windows web-app build:
+Create a self-contained Windows desktop build:
+
+```powershell
+.\scripts\publish-desktop.ps1
+```
+
+The interim web prototype also has a publish script while it remains in the repo:
 
 ```powershell
 .\scripts\publish-web.ps1
 ```
 
-Both scripts write to `artifacts/`.
-
-After publishing, run:
-
-```powershell
-.\Start-PostgresCopy-Web-Published.cmd
-```
-
-The published app opens at `http://localhost:5087` by default.
+Publish scripts write to `artifacts/`.
 
 ## Known Limits
 
@@ -147,6 +174,7 @@ The published app opens at `http://localhost:5087` by default.
 - Schema copy is deliberately separate from data copy and is not implemented yet.
 - Copies are table-data transfers, not upserts or conflict resolution.
 - Foreign-key ordering covers discoverable dependencies in the selected tables.
+- The current web UI is a temporary prototype, not the intended long-term UI.
 - Docker is required only for the integration script.
 
 ## Current Release
@@ -184,7 +212,11 @@ It can do the following things other databases only can dream of:
 
 #### Why a CLI?
 
-- It's simple and scriptable. The repo also includes a small local web app for a no-terminal workflow.
+- It's simple and scriptable. The native C# desktop GUI is the no-terminal companion.
+
+#### Why not keep the web app as the main GUI?
+
+- A local web server is more machinery than this tool needs. The no-terminal experience should feel like a small desktop utility: paste two URLs, dry-run, copy, watch progress, done.
 
 #### Why C#?
 
