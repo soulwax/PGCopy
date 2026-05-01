@@ -32,6 +32,27 @@ Useful options:
 --verbose
 ```
 
+## Try It Now
+
+Run the GUI from source:
+
+```powershell
+.\Start-PostgresCopy-Web.cmd
+```
+
+Or build and run the self-contained GUI:
+
+```powershell
+.\scripts\publish-web.ps1
+.\Start-PostgresCopy-Web-Published.cmd
+```
+
+The published CLI lands at:
+
+```powershell
+.\artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe --help
+```
+
 ## Local Web App
 
 For a no-terminal workflow, run the small local web app:
@@ -47,6 +68,8 @@ On Windows, you can also double-click `Start-PostgresCopy-Web.cmd`, or run:
 ```
 
 Open the shown local URL, paste the origin and destination database URLs, choose optional schema/table filters, and click **Run dry run**. The web app starts in dry-run mode and shows a compact readiness summary before you run. Uncheck **Dry run** when you are ready to copy. The operations log streams progress as the migration runs, and **Cancel** stops the active request. Keep **Verify counts** checked to compare origin and destination row counts after copying. To empty planned destination tables first, check **Truncate destination** and type `TRUNCATE` to confirm.
+
+The web app is local only. It does not store database URLs or run background services.
 
 ## Copy Checklist
 
@@ -110,6 +133,22 @@ Create a self-contained Windows web-app build:
 
 Both scripts write to `artifacts/`.
 
+After publishing, run:
+
+```powershell
+.\Start-PostgresCopy-Web-Published.cmd
+```
+
+The published app opens at `http://localhost:5087` by default.
+
+## Known Limits
+
+- Destination schemas and tables must already exist.
+- Schema copy is deliberately separate from data copy and is not implemented yet.
+- Copies are table-data transfers, not upserts or conflict resolution.
+- Foreign-key ordering covers discoverable dependencies in the selected tables.
+- Docker is required only for the integration script.
+
 ## Current Release
 
 Current version: `0.1.0`
@@ -128,10 +167,10 @@ It starts an origin database with sample data, starts a destination database wit
 
 
 ## FAQ
-#### Why PostgreSQL only? 
+
+#### Why PostgreSQL only?
 
 Because I needed a clear scope and this exact tool for myself.
-
 
 #### Why PostgreSQL in general?
 
@@ -143,10 +182,9 @@ It can do the following things other databases only can dream of:
 - Be extended with custom functions, operators, and data types.
 - Be used for both OLTP and OLAP workloads.
 
-
 #### Why a CLI?
-- It's simple and scriptable. The repo also includes a small local web app for a no-terminal workflow.
 
+- It's simple and scriptable. The repo also includes a small local web app for a no-terminal workflow.
 
 #### Why C#?
 

@@ -19,6 +19,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add a light prompt mode only when required values are missing.
 - [x] Add a small local web app for no-terminal use.
 - [x] Add a one-command web launcher.
+- [x] Add a one-command published web launcher.
 - [x] Add a web cancel button for active runs.
 - [x] Make web runs start safely in dry-run mode with a readiness summary.
 - [x] Improve `--dry-run` output with row counts and destination readiness.
@@ -48,7 +49,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Not Planned
 
-- No GUI.
+- No heavyweight GUI, hosted dashboard, or background service.
 - No ORM.
 - No non-PostgreSQL engines.
 - No hidden services.
