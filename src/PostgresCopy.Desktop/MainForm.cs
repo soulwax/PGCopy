@@ -7,6 +7,7 @@ namespace PostgresCopy.Desktop;
 
 public sealed class MainForm : Form
 {
+    // Connection tab
     private readonly TextBox originTextBox = new();
     private readonly TextBox destinationTextBox = new();
     private readonly TextBox schemaTextBox = new();
@@ -16,6 +17,24 @@ public sealed class MainForm : Form
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
     private readonly TextBox truncateConfirmationTextBox = new();
+
+    // SSH Tunnel tab
+    private readonly CheckBox sshForOriginCheckBox = new();
+    private readonly CheckBox sshForDestCheckBox = new();
+    private readonly TextBox sshHostTextBox = new();
+    private readonly TextBox sshPortTextBox = new();
+    private readonly TextBox sshUserTextBox = new();
+    private readonly ComboBox sshAuthCombo = new();
+    private readonly TextBox sshPasswordTextBox = new();
+    private readonly Panel sshPasswordPanel = new();
+    private readonly TextBox sshKeyPathTextBox = new();
+    private readonly Button sshKeyBrowseButton = new();
+    private readonly TextBox sshKeyPassphraseTextBox = new();
+    private readonly Panel sshKeyPanel = new();
+    private readonly TextBox sshRemoteHostTextBox = new();
+    private readonly TextBox sshRemotePortTextBox = new();
+
+    // Footer
     private readonly Button runButton = new();
     private readonly Button cancelButton = new();
     private readonly Button clearLogButton = new();
@@ -27,7 +46,7 @@ public sealed class MainForm : Form
     public MainForm()
     {
         Text = "PostgresCopy";
-        MinimumSize = new Size(920, 720);
+        MinimumSize = new Size(960, 780);
         StartPosition = FormStartPosition.CenterScreen;
 
         BuildLayout();
@@ -56,13 +75,25 @@ public sealed class MainForm : Form
             Margin = new Padding(0, 0, 0, 12),
         };
 
+        var tabs = new TabControl { Dock = DockStyle.Fill };
+
+        var connectionTab = new TabPage("Connection") { Padding = new Padding(8) };
+        connectionTab.Controls.Add(BuildInputPanel());
+        tabs.TabPages.Add(connectionTab);
+
+        var sshTab = new TabPage("SSH Tunnel") { Padding = new Padding(8) };
+        sshTab.Controls.Add(BuildSshPanel());
+        tabs.TabPages.Add(sshTab);
+
         root.Controls.Add(title, 0, 0);
-        root.Controls.Add(BuildInputPanel(), 0, 1);
+        root.Controls.Add(tabs, 0, 1);
         root.Controls.Add(BuildLogBox(), 0, 2);
         root.Controls.Add(BuildFooter(), 0, 3);
 
         Controls.Add(root);
     }
+
+    // ── Connection tab ─────────────────────────────────────────────────────────
 
     private Control BuildInputPanel()
     {
@@ -90,16 +121,16 @@ public sealed class MainForm : Form
 
         tablesTextBox.PlaceholderText = "optional: users,orders,products";
 
+        truncateConfirmationTextBox.PlaceholderText = "Type TRUNCATE when destination truncation is checked";
+        truncateConfirmationTextBox.Enabled = false;
+        truncateConfirmationTextBox.TextChanged += (_, _) => UpdateRunState();
+
         AddRow(panel, "Origin URL", originTextBox);
         AddRow(panel, "Destination URL", destinationTextBox);
         AddRow(panel, "Schema", schemaTextBox);
         AddRow(panel, "Tables", tablesTextBox);
         AddRow(panel, "Options", BuildOptionsPanel());
         AddRow(panel, "Confirm", truncateConfirmationTextBox);
-
-        truncateConfirmationTextBox.PlaceholderText = "Type TRUNCATE when destination truncation is checked";
-        truncateConfirmationTextBox.Enabled = false;
-        truncateConfirmationTextBox.TextChanged += (_, _) => UpdateRunState();
 
         return panel;
     }
@@ -128,10 +159,7 @@ public sealed class MainForm : Form
         {
             truncateConfirmationTextBox.Enabled = truncateCheckBox.Checked;
             if (!truncateCheckBox.Checked)
-            {
                 truncateConfirmationTextBox.Clear();
-            }
-
             UpdateRunState();
         };
 
@@ -144,6 +172,162 @@ public sealed class MainForm : Form
         panel.Controls.Add(createSchemaCheckBox);
         return panel;
     }
+
+    // ── SSH Tunnel tab ──────────────────────────────────────────────────────────
+
+    private Control BuildSshPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+        };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        // Apply to
+        var applyPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        sshForOriginCheckBox.Text = "Origin";
+        sshForOriginCheckBox.AutoSize = true;
+        sshForDestCheckBox.Text = "Destination";
+        sshForDestCheckBox.AutoSize = true;
+        applyPanel.Controls.Add(sshForOriginCheckBox);
+        applyPanel.Controls.Add(sshForDestCheckBox);
+        AddRow(panel, "Tunnel for", applyPanel);
+
+        // SSH host / port
+        sshPortTextBox.Text = "22";
+        sshPortTextBox.Width = 60;
+        var hostPortPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        sshHostTextBox.PlaceholderText = "ssh.example.com";
+        sshHostTextBox.Width = 260;
+        var portLabel = new Label { Text = "Port", AutoSize = true, Margin = new Padding(8, 4, 4, 0) };
+        hostPortPanel.Controls.Add(sshHostTextBox);
+        hostPortPanel.Controls.Add(portLabel);
+        hostPortPanel.Controls.Add(sshPortTextBox);
+        AddRow(panel, "SSH host", hostPortPanel);
+
+        // Username
+        sshUserTextBox.PlaceholderText = "username";
+        AddRow(panel, "Username", sshUserTextBox);
+
+        // Auth type
+        sshAuthCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+        sshAuthCombo.Items.AddRange(["Password", "Private key file"]);
+        sshAuthCombo.SelectedIndex = 0;
+        sshAuthCombo.Width = 160;
+        sshAuthCombo.SelectedIndexChanged += (_, _) => UpdateSshAuthVisibility();
+        AddRow(panel, "Auth", sshAuthCombo);
+
+        // Password panel
+        sshPasswordTextBox.PlaceholderText = "SSH password";
+        sshPasswordTextBox.UseSystemPasswordChar = true;
+        sshPasswordTextBox.Dock = DockStyle.Fill;
+        sshPasswordPanel.Dock = DockStyle.Fill;
+        sshPasswordPanel.AutoSize = true;
+        sshPasswordPanel.Controls.Add(sshPasswordTextBox);
+        AddRow(panel, "Password", sshPasswordPanel);
+
+        // Key file panel
+        sshKeyPathTextBox.PlaceholderText = "Path to private key file (.pem, .ppk, OpenSSH)";
+        sshKeyBrowseButton.Text = "Browse…";
+        sshKeyBrowseButton.AutoSize = true;
+        sshKeyBrowseButton.Click += SshKeyBrowse_Click;
+        sshKeyPassphraseTextBox.PlaceholderText = "Passphrase (optional)";
+        sshKeyPassphraseTextBox.UseSystemPasswordChar = true;
+
+        var keyLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true };
+        keyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        keyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        sshKeyPathTextBox.Dock = DockStyle.Fill;
+        sshKeyBrowseButton.Dock = DockStyle.Fill;
+        keyLayout.Controls.Add(sshKeyPathTextBox, 0, 0);
+        keyLayout.Controls.Add(sshKeyBrowseButton, 1, 0);
+        keyLayout.Controls.Add(sshKeyPassphraseTextBox, 0, 1);
+        keyLayout.SetColumnSpan(sshKeyPassphraseTextBox, 2);
+
+        sshKeyPanel.Dock = DockStyle.Fill;
+        sshKeyPanel.AutoSize = true;
+        sshKeyPanel.Controls.Add(keyLayout);
+        sshKeyPanel.Visible = false;
+        AddRow(panel, "Key file", sshKeyPanel);
+
+        // Remote postgres location
+        sshRemoteHostTextBox.Text = "localhost";
+        sshRemotePortTextBox.Text = "5432";
+        sshRemotePortTextBox.Width = 60;
+        var remotePanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        sshRemoteHostTextBox.Width = 200;
+        var remotePortLabel = new Label { Text = "Port", AutoSize = true, Margin = new Padding(8, 4, 4, 0) };
+        remotePanel.Controls.Add(sshRemoteHostTextBox);
+        remotePanel.Controls.Add(remotePortLabel);
+        remotePanel.Controls.Add(sshRemotePortTextBox);
+        AddRow(panel, "Remote host", remotePanel);
+
+        var note = new Label
+        {
+            Text = "Remote host/port = where PostgreSQL is visible from the SSH server (usually localhost:5432).",
+            AutoSize = true,
+            ForeColor = SystemColors.GrayText,
+            Margin = new Padding(0, 4, 0, 0),
+        };
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.Controls.Add(note, 1, row);
+
+        return panel;
+    }
+
+    private void UpdateSshAuthVisibility()
+    {
+        var useKey = sshAuthCombo.SelectedIndex == 1;
+        sshPasswordPanel.Visible = !useKey;
+        sshKeyPanel.Visible = useKey;
+    }
+
+    private void SshKeyBrowse_Click(object? sender, EventArgs e)
+    {
+        using var dlg = new OpenFileDialog
+        {
+            Title = "Select SSH private key",
+            Filter = "Key files (*.pem;*.ppk;*)|*.pem;*.ppk;*|All files (*.*)|*.*",
+        };
+        if (dlg.ShowDialog() == DialogResult.OK)
+            sshKeyPathTextBox.Text = dlg.FileName;
+    }
+
+    private bool SshEnabled =>
+        sshForOriginCheckBox.Checked || sshForDestCheckBox.Checked;
+
+    private SshTunnelConfig BuildSshConfig()
+    {
+        if (!int.TryParse(sshPortTextBox.Text, out var sshPort) || sshPort <= 0)
+            throw new ValidationException("SSH port must be a positive integer.");
+        if (!int.TryParse(sshRemotePortTextBox.Text, out var remotePort) || remotePort <= 0)
+            throw new ValidationException("Remote PostgreSQL port must be a positive integer.");
+        if (string.IsNullOrWhiteSpace(sshHostTextBox.Text))
+            throw new ValidationException("SSH host is required when SSH tunnel is enabled.");
+        if (string.IsNullOrWhiteSpace(sshUserTextBox.Text))
+            throw new ValidationException("SSH username is required.");
+
+        var authType = sshAuthCombo.SelectedIndex == 1 ? SshAuthType.PrivateKey : SshAuthType.Password;
+
+        return new SshTunnelConfig(
+            sshForOriginCheckBox.Checked,
+            sshForDestCheckBox.Checked,
+            sshHostTextBox.Text.Trim(),
+            sshPort,
+            sshUserTextBox.Text.Trim(),
+            authType,
+            authType == SshAuthType.Password ? sshPasswordTextBox.Text : null,
+            authType == SshAuthType.PrivateKey ? sshKeyPathTextBox.Text.Trim() : null,
+            authType == SshAuthType.PrivateKey ? sshKeyPassphraseTextBox.Text : null,
+            string.IsNullOrWhiteSpace(sshRemoteHostTextBox.Text) ? "localhost" : sshRemoteHostTextBox.Text.Trim(),
+            remotePort);
+    }
+
+    // ── Log + footer ────────────────────────────────────────────────────────────
 
     private Control BuildLogBox()
     {
@@ -200,25 +384,7 @@ public sealed class MainForm : Form
         return footer;
     }
 
-    private static void AddRow(TableLayoutPanel panel, string labelText, Control control)
-    {
-        var row = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        var label = new Label
-        {
-            Text = labelText,
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 8, 12, 8),
-        };
-
-        control.Dock = DockStyle.Fill;
-        control.Margin = new Padding(0, 4, 0, 4);
-
-        panel.Controls.Add(label, 0, row);
-        panel.Controls.Add(control, 1, row);
-    }
+    // ── Run logic ───────────────────────────────────────────────────────────────
 
     private async void RunButton_Click(object? sender, EventArgs eventArgs)
     {
@@ -227,10 +393,33 @@ public sealed class MainForm : Form
 
         activeRun = new CancellationTokenSource();
         var logger = new UiMigrationLogger(AppendLog);
+        SshTunnelConnection? tunnel = null;
 
         try
         {
-            var settings = BuildSettings();
+            var originText = originTextBox.Text.Trim();
+            var destText = destinationTextBox.Text.Trim();
+
+            if (SshEnabled)
+            {
+                var sshConfig = BuildSshConfig();
+                AppendLog($"Connecting SSH tunnel to {sshConfig.Host}:{sshConfig.Port}…");
+                tunnel = await SshTunnelConnection.StartAsync(sshConfig, originText, destText, activeRun.Token);
+
+                if (tunnel.PatchedOrigin != null)
+                {
+                    originText = tunnel.PatchedOrigin;
+                    AppendLog("SSH tunnel active for origin.");
+                }
+
+                if (tunnel.PatchedDest != null)
+                {
+                    destText = tunnel.PatchedDest;
+                    AppendLog("SSH tunnel active for destination.");
+                }
+            }
+
+            var settings = BuildSettings(originText, destText);
             await new MigrationRunner(logger).RunAsync(
                 settings,
                 destructiveActionsConfirmed: true,
@@ -271,13 +460,14 @@ public sealed class MainForm : Form
         }
         finally
         {
+            tunnel?.Dispose();
             activeRun.Dispose();
             activeRun = null;
             SetRunning(false);
         }
     }
 
-    private MigrationSettings BuildSettings()
+    private MigrationSettings BuildSettings(string? originOverride = null, string? destOverride = null)
     {
         if (truncateCheckBox.Checked
             && !string.Equals(truncateConfirmationTextBox.Text, "TRUNCATE", StringComparison.Ordinal))
@@ -286,8 +476,8 @@ public sealed class MainForm : Form
         }
 
         var options = new CliOptions(
-            originTextBox.Text.Trim(),
-            destinationTextBox.Text.Trim(),
+            originOverride ?? originTextBox.Text.Trim(),
+            destOverride ?? destinationTextBox.Text.Trim(),
             string.IsNullOrWhiteSpace(schemaTextBox.Text) ? "public" : schemaTextBox.Text.Trim(),
             ParseTables(tablesTextBox.Text),
             dryRunCheckBox.Checked,
@@ -304,9 +494,7 @@ public sealed class MainForm : Form
     private static IReadOnlyList<string> ParseTables(string tables)
     {
         if (string.IsNullOrWhiteSpace(tables))
-        {
             return [];
-        }
 
         return tables
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
@@ -316,10 +504,7 @@ public sealed class MainForm : Form
 
     private void AppendLog(string message)
     {
-        if (IsDisposed)
-        {
-            return;
-        }
+        if (IsDisposed) return;
 
         if (InvokeRequired)
         {
@@ -341,6 +526,20 @@ public sealed class MainForm : Form
         truncateCheckBox.Enabled = !running;
         truncateConfirmationTextBox.Enabled = !running && truncateCheckBox.Checked;
         createSchemaCheckBox.Enabled = !running;
+
+        sshForOriginCheckBox.Enabled = !running;
+        sshForDestCheckBox.Enabled = !running;
+        sshHostTextBox.Enabled = !running;
+        sshPortTextBox.Enabled = !running;
+        sshUserTextBox.Enabled = !running;
+        sshAuthCombo.Enabled = !running;
+        sshPasswordTextBox.Enabled = !running;
+        sshKeyPathTextBox.Enabled = !running;
+        sshKeyBrowseButton.Enabled = !running;
+        sshKeyPassphraseTextBox.Enabled = !running;
+        sshRemoteHostTextBox.Enabled = !running;
+        sshRemotePortTextBox.Enabled = !running;
+
         clearLogButton.Enabled = !running;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
@@ -364,14 +563,28 @@ public sealed class MainForm : Form
         runButton.Enabled = activeRun is null && destructiveReady;
 
         if (!destructiveReady)
-        {
             statusLabel.Text = "Type TRUNCATE to enable destination truncation.";
-        }
         else if (activeRun is null)
+            statusLabel.Text = dryRunCheckBox.Checked ? "Ready. Start with a dry run." : "Ready to copy.";
+    }
+
+    private static void AddRow(TableLayoutPanel panel, string labelText, Control control)
+    {
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var label = new Label
         {
-            statusLabel.Text = dryRunCheckBox.Checked
-                ? "Ready. Start with a dry run."
-                : "Ready to copy.";
-        }
+            Text = labelText,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 8, 12, 8),
+        };
+
+        control.Dock = DockStyle.Fill;
+        control.Margin = new Padding(0, 4, 0, 4);
+
+        panel.Controls.Add(label, 0, row);
+        panel.Controls.Add(control, 1, row);
     }
 }
