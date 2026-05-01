@@ -10,4 +10,5 @@ public sealed record MigrationSettings(
     bool Verify,
     bool Verbose,
     bool Yes,
-    int BatchSize);
+    int BatchSize,
+    bool CreateSchema);

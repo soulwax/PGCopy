@@ -10,7 +10,7 @@ Read these files before making design or behavior changes:
 
 - `README.md` for current user-facing behavior.
 - `TODO.md` for the lightweight backlog.
-- `docs/superpowers/specs/2026-04-30-pgcopy-design.md` for original product intent.
+- `docs/superpowers/specs/2026-04-30-pgcopy-design.md` for the original brainstorming sketch (marked superseded — treat as historical context, not current guidance).
 - `docs/agents/DECISIONS.md` for decisions already made.
 - `docs/agents/RUNBOOK.md` for verification commands and environment notes.
 
@@ -123,9 +123,11 @@ This requires Docker.
 
 ## Good Next Slices
 
-Pick from `TODO.md`, but the most useful remaining slices are:
+Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
-- Add a clear partial-failure summary.
-- Improve dry-run with row counts and destination readiness.
-- De-emphasize or remove the interim web prototype once the desktop app is comfortable.
-- Make integration testing easier when Docker is available.
+- **Commit the Desktop project.** `src/PostgresCopy.Desktop/` and its launchers/scripts exist on disk but have never been committed. Run `git status --short --untracked-files=all` to confirm, then commit the whole Desktop surface in one pass.
+- **Replace or de-emphasize the interim web prototype.** Now that the native Desktop GUI exists and is complete, the web prototype (`src/PostgresCopy.Web/`) should either be removed or explicitly marked as unsupported. See `TODO.md`.
+- **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
+- **CLI progress polish.** Consider `--progress` display refinements once the native GUI direction is settled and confirmed.
+
+Do not re-add completed items: partial-failure summary, dry-run row counts, and destination readiness checks are all done in v0.1.0.

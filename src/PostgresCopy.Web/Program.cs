@@ -95,7 +95,8 @@ static async Task RunMigrationAsync(
         request.Verify,
         false,
         false,
-        CliOptionsParser.DefaultBatchSize);
+        CliOptionsParser.DefaultBatchSize,
+        request.CreateSchema);
 
     var settings = MigrationSettingsValidator.Validate(options);
     if (settings.TruncateDestination

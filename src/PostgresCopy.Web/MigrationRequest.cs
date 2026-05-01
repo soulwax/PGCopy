@@ -8,4 +8,5 @@ public sealed record MigrationRequest(
     bool DryRun,
     bool Verify,
     bool TruncateDestination,
-    string? TruncateConfirmation);
+    string? TruncateConfirmation,
+    bool CreateSchema);

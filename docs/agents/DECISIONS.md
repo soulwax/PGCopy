@@ -55,3 +55,21 @@ Reason: row counts are cheap, understandable, and useful as a first trust check.
 `NuGet.config` clears inherited package sources and uses nuget.org.
 
 Reason: a missing user-level NuGet source caused restore failures in this environment.
+
+## 2026-04-30: Unit Tests Are Kept From the Start
+
+The original brainstorming sketch suggested skipping unit tests in v1. This was reversed: `tests/PostgresCopy.Tests` exists with 9 test suites covering parsing, validation, planning, safety gates, and redaction.
+
+Reason: the logic in `Cli`, `Config`, and `Migration` is testable without a real database, catches regressions without Docker, and builds quickly. Skipping them created more risk than the overhead cost.
+
+## 2026-04-30: Do Not Assume pg_dump Is on PATH
+
+Schema-copy behavior via `pg_dump` and `psql` has not been implemented. Before building anything that shells out to these tools, verify their path in the shell that will actually launch the app. Non-interactive sessions in this environment did not resolve `pg_dump` by name even when it was available in an interactive shell.
+
+Reason: silent tool-not-found failures during copy are worse than an unimplemented feature. Verify the path explicitly and fail with a useful message if it is missing.
+
+## 2026-05-01: This Environment Has .NET 10 Only
+
+Projects target `net10.0`. The framework `net9.0` is not installed in this environment and scaffolding commands using `-f net9.0` will fail with an invalid option error.
+
+Reason: confirmed during initial scaffolding attempt. Always use `-f net10.0` for `dotnet new` commands in this repo.

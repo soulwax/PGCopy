@@ -10,4 +10,5 @@ public sealed record CliOptions(
     bool Verify,
     bool Verbose,
     bool Yes,
-    int BatchSize);
+    int BatchSize,
+    bool CreateSchema);

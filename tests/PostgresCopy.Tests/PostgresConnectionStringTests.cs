@@ -37,7 +37,8 @@ public sealed class PostgresConnectionStringTests
             false,
             false,
             false,
-            CliOptionsParser.DefaultBatchSize);
+            CliOptionsParser.DefaultBatchSize,
+            false);
 
         var ex = Assert.Throws<ValidationException>(() => MigrationSettingsValidator.Validate(options));
         Assert.Contains("same database", ex.Message);

@@ -17,6 +17,9 @@ public static class CliOptionsParser
           --table <value>         Copy one table. May be passed more than once.
           --tables <csv>          Copy comma-separated tables.
           --batch-size <number>   Reserved for future row batching. Defaults to 10000.
+          --create-schema         Copy schema DDL from origin to destination via pg_dump
+                                  before copying data. Requires pg_dump and psql on PATH.
+                                  Use a direct (non-pooled) connection string for this step.
           --dry-run               Print the plan without copying data.
           --truncate-destination  Empty planned destination tables before copying.
           --verify                Compare origin and destination row counts after copying.
@@ -42,6 +45,7 @@ public static class CliOptionsParser
         var verbose = false;
         var yes = false;
         var batchSize = DefaultBatchSize;
+        var createSchema = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -105,6 +109,9 @@ public static class CliOptionsParser
                     }
 
                     break;
+                case "--create-schema":
+                    createSchema = true;
+                    break;
                 case "--dry-run":
                     dryRun = true;
                     break;
@@ -155,7 +162,8 @@ public static class CliOptionsParser
             verify,
             verbose,
             yes,
-            batchSize));
+            batchSize,
+            createSchema));
     }
 
     private static bool TryReadValue(

@@ -14,6 +14,7 @@ public sealed class MainForm : Form
     private readonly CheckBox dryRunCheckBox = new();
     private readonly CheckBox verifyCheckBox = new();
     private readonly CheckBox truncateCheckBox = new();
+    private readonly CheckBox createSchemaCheckBox = new();
     private readonly TextBox truncateConfirmationTextBox = new();
     private readonly Button runButton = new();
     private readonly Button cancelButton = new();
@@ -134,9 +135,13 @@ public sealed class MainForm : Form
             UpdateRunState();
         };
 
+        createSchemaCheckBox.Text = "Create schema (requires pg_dump)";
+        createSchemaCheckBox.AutoSize = true;
+
         panel.Controls.Add(dryRunCheckBox);
         panel.Controls.Add(verifyCheckBox);
         panel.Controls.Add(truncateCheckBox);
+        panel.Controls.Add(createSchemaCheckBox);
         return panel;
     }
 
@@ -290,7 +295,8 @@ public sealed class MainForm : Form
             verifyCheckBox.Checked,
             false,
             true,
-            CliOptionsParser.DefaultBatchSize);
+            CliOptionsParser.DefaultBatchSize,
+            createSchemaCheckBox.Checked);
 
         return MigrationSettingsValidator.Validate(options);
     }
@@ -334,6 +340,7 @@ public sealed class MainForm : Form
         verifyCheckBox.Enabled = !running;
         truncateCheckBox.Enabled = !running;
         truncateConfirmationTextBox.Enabled = !running && truncateCheckBox.Checked;
+        createSchemaCheckBox.Enabled = !running;
         clearLogButton.Enabled = !running;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
