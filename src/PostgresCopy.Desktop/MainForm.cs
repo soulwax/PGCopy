@@ -19,6 +19,7 @@ public sealed class MainForm : Form
     private readonly TextBox truncateConfirmationTextBox = new();
 
     // SSH Tunnel tab
+    private readonly ComboBox sshConfigHostCombo = new();
     private readonly CheckBox sshForOriginCheckBox = new();
     private readonly CheckBox sshForDestCheckBox = new();
     private readonly TextBox sshHostTextBox = new();
@@ -185,6 +186,33 @@ public sealed class MainForm : Form
         };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        // ~/.ssh/config host selector
+        var sshConfigEntries = SshConfigReader.Read();
+        sshConfigHostCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+        sshConfigHostCombo.Width = 260;
+        if (sshConfigEntries.Count > 0)
+        {
+            sshConfigHostCombo.Items.Add("(select to pre-fill)");
+            foreach (var entry in sshConfigEntries)
+                sshConfigHostCombo.Items.Add(entry);
+            sshConfigHostCombo.DisplayMember = nameof(SshConfigEntry.Alias);
+            sshConfigHostCombo.SelectedIndex = 0;
+            sshConfigHostCombo.SelectedIndexChanged += (_, _) =>
+            {
+                if (sshConfigHostCombo.SelectedItem is not SshConfigEntry entry) return;
+                sshHostTextBox.Text = entry.HostName;
+                sshPortTextBox.Text = entry.Port.ToString();
+                if (entry.User is not null) sshUserTextBox.Text = entry.User;
+                if (entry.IdentityFile is not null)
+                {
+                    sshKeyPathTextBox.Text = entry.IdentityFile;
+                    sshAuthCombo.SelectedIndex = 1;
+                    UpdateSshAuthVisibility();
+                }
+            };
+            AddRow(panel, "~/.ssh/config", sshConfigHostCombo);
+        }
 
         // Apply to
         var applyPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
@@ -527,6 +555,7 @@ public sealed class MainForm : Form
         truncateConfirmationTextBox.Enabled = !running && truncateCheckBox.Checked;
         createSchemaCheckBox.Enabled = !running;
 
+        sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;
         sshForDestCheckBox.Enabled = !running;
         sshHostTextBox.Enabled = !running;

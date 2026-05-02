@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using Npgsql;
 using Renci.SshNet;
 
@@ -46,8 +44,7 @@ public sealed class SshTunnelConnection : IDisposable
 
         if (config.EnableForOrigin)
         {
-            var localPort = GetFreeLocalPort();
-            originPort = new ForwardedPortLocal("127.0.0.1", (uint)localPort, config.RemoteHost, (uint)config.RemotePort);
+            originPort = new ForwardedPortLocal("127.0.0.1", 0u, config.RemoteHost, (uint)config.RemotePort);
             client.AddForwardedPort(originPort);
             originPort.Start();
             patchedOrigin = PatchConnectionString(originConnectionString, "127.0.0.1", (int)originPort.BoundPort);
@@ -55,8 +52,7 @@ public sealed class SshTunnelConnection : IDisposable
 
         if (config.EnableForDestination)
         {
-            var localPort = GetFreeLocalPort();
-            destPort = new ForwardedPortLocal("127.0.0.1", (uint)localPort, config.RemoteHost, (uint)config.RemotePort);
+            destPort = new ForwardedPortLocal("127.0.0.1", 0u, config.RemoteHost, (uint)config.RemotePort);
             client.AddForwardedPort(destPort);
             destPort.Start();
             patchedDest = PatchConnectionString(destConnectionString, "127.0.0.1", (int)destPort.BoundPort);
@@ -92,19 +88,12 @@ public sealed class SshTunnelConnection : IDisposable
         return b.ConnectionString;
     }
 
-    private static int GetFreeLocalPort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
-
     public void Dispose()
     {
         _originPort?.Stop();
+        _originPort?.Dispose();
         _destPort?.Stop();
+        _destPort?.Dispose();
         _client.Disconnect();
         _client.Dispose();
     }

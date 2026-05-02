@@ -55,12 +55,17 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add simple row-count verification with `--verify`.
 - [x] Report elapsed time and rows copied per table.
 - [x] Keep schema copying separate from data copying.
+- [x] Add `--create-schema` to copy schema from origin via pg_dump before data transfer.
+
+## SSH Tunnel
+
+- [x] Add SSH tunnel support for databases reachable only through a jump host.
+- [x] Read `~/.ssh/config` to auto-populate SSH connection fields in the GUI.
 
 ## Later
 
 - Consider CLI progress polish only after the native GUI direction is settled.
 - Add `--schema-only` and `--data-only` once the basic copy path is solid.
-- Add schema creation only as an explicit mode.
 - [x] Add publish scripts for single-file builds.
 
 ## Not Planned

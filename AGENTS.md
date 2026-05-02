@@ -125,9 +125,9 @@ This requires Docker.
 
 Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
-- **Commit the Desktop project.** `src/PostgresCopy.Desktop/` and its launchers/scripts exist on disk but have never been committed. Run `git status --short --untracked-files=all` to confirm, then commit the whole Desktop surface in one pass.
 - **Replace or de-emphasize the interim web prototype.** Now that the native Desktop GUI exists and is complete, the web prototype (`src/PostgresCopy.Web/`) should either be removed or explicitly marked as unsupported. See `TODO.md`.
 - **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
 - **CLI progress polish.** Consider `--progress` display refinements once the native GUI direction is settled and confirmed.
+- **`--schema-only` / `--data-only` CLI flags.** Add explicit flags to copy only DDL or only data without combining the two steps.
 
-Do not re-add completed items: partial-failure summary, dry-run row counts, and destination readiness checks are all done in v0.1.0.
+Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, and `~/.ssh/config` auto-population are all done.

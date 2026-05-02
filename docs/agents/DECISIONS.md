@@ -73,3 +73,27 @@ Reason: silent tool-not-found failures during copy are worse than an unimplement
 Projects target `net10.0`. The framework `net9.0` is not installed in this environment and scaffolding commands using `-f net9.0` will fail with an invalid option error.
 
 Reason: confirmed during initial scaffolding attempt. Always use `-f net10.0` for `dotnet new` commands in this repo.
+
+## 2026-05-01: Schema Copy via pg_dump Is Implemented
+
+`SchemaCreator.CreateAsync` shells out to `pg_dump --schema-only --no-owner --no-acl` and pipes its stdout to `psql`. It checks both tools on PATH at startup and returns a descriptive error if either is missing or times out. The desktop GUI exposes this as "Create schema (requires pg_dump)".
+
+Reason: destination tables must exist before data copy can run, and `pg_dump` is the safest way to reproduce the schema exactly including sequences, indexes, and constraints.
+
+## 2026-05-01: SSH Tunnel via SSH.NET
+
+SSH tunneling is implemented in `SshTunnelConnection` (Desktop project only). It wraps SSH.NET's `SshClient` and `ForwardedPortLocal`. Port `0u` is passed to `ForwardedPortLocal` — the OS assigns a free port, avoiding any TOCTOU race. `Dispose` calls `Stop()` then `Dispose()` on each forwarded port.
+
+Reason: some PostgreSQL instances are only reachable via an SSH jump host. The tunnel is established before Npgsql connections are opened and torn down in the `finally` block of the run handler.
+
+## 2026-05-01: Credentials as Connection Strings Are Accepted
+
+The app accepts Npgsql connection strings which contain passwords in plaintext. This is an accepted risk for a desktop utility — the user supplies the string and it lives only in process memory. Strings are never logged or written to disk.
+
+Reason: the alternative (per-field credential entry) is more machinery for no security gain in a single-user local desktop tool. If a secure vault integration is needed later, it can be added as an optional layer.
+
+## 2026-05-01: SSH Config Auto-Population
+
+`SshConfigReader` parses `%USERPROFILE%\.ssh\config` at startup. The SSH Tunnel tab shows a dropdown of named hosts from that file (wildcard patterns are skipped). Selecting a host pre-fills SSH host, port, username, and key path.
+
+Reason: reduces friction for users who already have SSH hosts configured. The user requested this explicitly.

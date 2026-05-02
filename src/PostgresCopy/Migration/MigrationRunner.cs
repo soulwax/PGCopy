@@ -16,6 +16,24 @@ public sealed class MigrationRunner(IMigrationLogger logger)
         logger.Info($"Origin:      {settings.Origin.RedactedConnectionString}");
         logger.Info($"Destination: {settings.Destination.RedactedConnectionString}");
 
+        if (settings.CreateSchema)
+        {
+            logger.Step("Creating destination schema");
+            logger.Info("Running pg_dump --schema-only and applying to destination.");
+            logger.Info("Note: use a direct (non-pooled) connection string if pg_dump fails to connect.");
+            var schemaError = await SchemaCreator.CreateAsync(
+                settings.Origin.ConnectionString,
+                settings.Destination.ConnectionString,
+                settings.Schema,
+                cancellationToken);
+            if (schemaError != null)
+            {
+                logger.Error(schemaError);
+                return new MigrationRunResult(false, 0, 0);
+            }
+            logger.Success("Schema applied to destination.");
+        }
+
         await using var origin = new NpgsqlConnection(settings.Origin.ConnectionString);
         await using var destination = new NpgsqlConnection(settings.Destination.ConnectionString);
 
@@ -36,24 +54,6 @@ public sealed class MigrationRunner(IMigrationLogger logger)
             cancellationToken);
 
         var plan = new MigrationPlanner().CreatePlan(settings, tables, dependencies);
-
-        if (settings.CreateSchema)
-        {
-            logger.Step("Creating destination schema");
-            logger.Info("Running pg_dump --schema-only and applying to destination.");
-            logger.Info("Note: use a direct (non-pooled) connection string if pg_dump fails to connect.");
-            var schemaError = await SchemaCreator.CreateAsync(
-                settings.Origin.ConnectionString,
-                settings.Destination.ConnectionString,
-                settings.Schema,
-                cancellationToken);
-            if (schemaError != null)
-            {
-                logger.Error(schemaError);
-                return new MigrationRunResult(false, 0, 0);
-            }
-            logger.Success("Schema applied to destination.");
-        }
 
         logger.Step("Checking destination schema");
         var destinationInspector = new PostgresSchemaInspector(destination);

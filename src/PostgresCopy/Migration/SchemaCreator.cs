@@ -40,7 +40,11 @@ public static class SchemaCreator
             psi.ArgumentList.Add("--version");
 
             using var p = Process.Start(psi)!;
-            p.WaitForExit(3000);
+            if (!p.WaitForExit(3000))
+            {
+                p.Kill();
+                return $"'{tool}' timed out during version check. Ensure it is on PATH and responsive.";
+            }
             return null;
         }
         catch
@@ -102,12 +106,26 @@ public static class SchemaCreator
         }, ct);
 
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
-        await Task.WhenAll(writeTask, stderrTask);
+
+        // Collect both results regardless of which side faults so stderr is never lost.
+        string stderr;
+        try
+        {
+            await Task.WhenAll(writeTask, stderrTask);
+            stderr = stderrTask.Result;
+        }
+        catch
+        {
+            stderr = stderrTask.IsCompletedSuccessfully ? stderrTask.Result : string.Empty;
+            if (!writeTask.IsCompletedSuccessfully)
+                writeTask.Exception?.Handle(_ => true);
+            throw;
+        }
+
         await process.WaitForExitAsync(ct);
 
         if (process.ExitCode != 0)
         {
-            var stderr = await stderrTask;
             return $"psql failed (exit {process.ExitCode}): {stderr.Trim()}";
         }
 

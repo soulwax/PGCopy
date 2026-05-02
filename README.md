@@ -6,8 +6,9 @@ The MVP is intentionally narrow:
 
 - PostgreSQL only.
 - Origin and destination are supplied as connection strings or `postgres://` URLs.
-- Destination schema and tables must already exist.
+- Optionally copies the destination schema from origin via `pg_dump --schema-only`.
 - Data is copied table by table with PostgreSQL binary `COPY`.
+- SSH tunneling for databases reachable only through a jump host.
 - Destination truncation is explicit and confirmed.
 
 ## Usage
@@ -100,17 +101,37 @@ Until the native desktop app exists, the local web prototype can still be run fo
 
 It is local only, does not store database URLs, and should not grow into a hosted dashboard or background service.
 
+## Schema Copy
+
+If the destination database does not yet have any tables, check **Create schema (requires pg_dump)** in the GUI or pass `--create-schema` on the CLI. This runs `pg_dump --schema-only --no-owner --no-acl` against the origin and pipes the result into the destination before the data copy starts.
+
+Requirements:
+- `pg_dump` and `psql` must be on your PATH.
+- Use a **direct** (non-pooled) connection string for the origin. Neon pooled hostnames (`*.pooler.neon.tech`) cannot be used with `pg_dump`.
+
+## SSH Tunnel
+
+If your PostgreSQL database is only reachable through an SSH jump host, enable the **SSH Tunnel** tab in the desktop app:
+
+1. Select a host from the **~/.ssh/config** dropdown (if you have one) or fill in the fields manually.
+2. Check **Origin** or **Destination** (or both) under **Tunnel for**.
+3. Fill in the SSH host, port, username, and authentication method.
+4. Set **Remote host** to where PostgreSQL is visible from the SSH server (usually `localhost:5432`).
+
+The tunnel is established before the migration starts and torn down automatically afterwards.
+
 ## Copy Checklist
 
-1. Make sure the destination schema and tables already exist.
-2. Start the native desktop app, CLI, or interim web prototype.
-3. Paste origin and destination URLs.
-4. Keep **Dry run** checked and click **Run dry run**.
-5. Review the operations log, especially destination row counts.
-6. If destination tables contain data and you want to replace it, check **Truncate destination** and type `TRUNCATE`.
-7. Uncheck **Dry run**.
-8. Keep **Verify counts** checked.
-9. Click **Run copy**.
+1. If the destination database has no tables, check **Create schema**.
+2. If the database is behind an SSH jump host, configure the **SSH Tunnel** tab.
+3. Start the native desktop app or CLI.
+4. Paste origin and destination URLs.
+5. Keep **Dry run** checked and click **Run dry run**.
+6. Review the operations log, especially destination row counts.
+7. If destination tables contain data and you want to replace it, check **Truncate destination** and type `TRUNCATE`.
+8. Uncheck **Dry run**.
+9. Keep **Verify counts** checked.
+10. Click **Run copy**.
 
 ## Safety
 
@@ -170,8 +191,7 @@ Publish scripts write to `artifacts/`.
 
 ## Known Limits
 
-- Destination schemas and tables must already exist.
-- Schema copy is deliberately separate from data copy and is not implemented yet.
+- Destination schema is either copied via `--create-schema` / `pg_dump` or must already exist.
 - Copies are table-data transfers, not upserts or conflict resolution.
 - Foreign-key ordering covers discoverable dependencies in the selected tables.
 - The current web UI is a temporary prototype, not the intended long-term UI.
