@@ -1,7 +1,7 @@
 <h1 align="center">PostgresCopy</h1>
 
 <p align="center">
-  <img src="src/PostgresCopy.Desktop/Assets/kabuki-db-jump.png" alt="PostgresCopy logo — a kabuki kitsune leaping from database A to database B" width="240"/>
+  <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="240"/>
 </p>
 
 <p align="center">

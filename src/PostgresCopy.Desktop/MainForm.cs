@@ -78,8 +78,8 @@ public sealed class MainForm : Form
 
         var logo = new LogoPanel
         {
-            Size = new Size(56, 56),
-            Margin = new Padding(0, 0, 14, 0),
+            Size = new Size(128, 128);
+            Margin = new Padding(0, 0, 18, 0),
         };
 
         var title = new Label
@@ -87,7 +87,7 @@ public sealed class MainForm : Form
             Text = "PostgresCopy",
             AutoSize = true,
             Font = new Font(Font.FontFamily, 18, FontStyle.Bold),
-            Margin = new Padding(0, 6, 0, 0),
+            Margin = new Padding(0, 31, 0, 0),
         };
 
         titleBar.Controls.Add(logo);

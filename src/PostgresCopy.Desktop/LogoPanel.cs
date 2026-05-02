@@ -15,7 +15,7 @@ public sealed class LogoPanel : Control
             | ControlStyles.ResizeRedraw
             | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        Size = new Size(160, 60);
+        Size = new Size(128, 128);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -43,7 +43,7 @@ public sealed class LogoPanel : Control
     {
         var asm = Assembly.GetExecutingAssembly();
         var name = asm.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith("kabuki-db-jump.png", StringComparison.Ordinal));
+            .FirstOrDefault(n => n.EndsWith("kitsunedb.png", StringComparison.Ordinal));
         if (name is null) return null;
 
         using var stream = asm.GetManifestResourceStream(name);
