@@ -10,6 +10,29 @@
 
 ---
 
+## Quick Use (TL;DR)
+
+### Debug .exe
+
+```powershell
+dotnet build src\PostgresCopy.Desktop -c Release
+```
+
+Output: src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Desktop.exe — needs the .NET 10 runtime installed to run.
+
+### Distributable (single-file, self-contained)
+
+```powershell
+.\scripts\publish-desktop.ps1
+```
+
+Output: `artifacts\PostgresCopy-desktop-win-x64\PostgresCopy.Desktop.exe` — bundles the .NET runtime, runs on any Windows x64 machine without prerequisites.
+
+Same for the CLI: 
+`.\scripts\publish-cli.ps1` → artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe
+
+Make sure to get .NET 10 from https://dotnet.microsoft.com/download if you want to run the debug builds from source.
+
 ## What It Is
 
 PostgresCopy is a small, focused C# tool that copies the contents of one PostgreSQL database into another. You give it two connection strings; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies row counts when it's done.
