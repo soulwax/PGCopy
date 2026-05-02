@@ -68,13 +68,30 @@ public sealed class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
+        var titleBar = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 0, 0, 12),
+        };
+
+        var logo = new LogoPanel
+        {
+            Size = new Size(56, 56),
+            Margin = new Padding(0, 0, 14, 0),
+        };
+
         var title = new Label
         {
             Text = "PostgresCopy",
             AutoSize = true,
             Font = new Font(Font.FontFamily, 18, FontStyle.Bold),
-            Margin = new Padding(0, 0, 0, 12),
+            Margin = new Padding(0, 6, 0, 0),
         };
+
+        titleBar.Controls.Add(logo);
+        titleBar.Controls.Add(title);
 
         var tabs = new TabControl { Dock = DockStyle.Fill };
 
@@ -86,7 +103,7 @@ public sealed class MainForm : Form
         sshTab.Controls.Add(BuildSshPanel());
         tabs.TabPages.Add(sshTab);
 
-        root.Controls.Add(title, 0, 0);
+        root.Controls.Add(titleBar, 0, 0);
         root.Controls.Add(tabs, 0, 1);
         root.Controls.Add(BuildLogBox(), 0, 2);
         root.Controls.Add(BuildFooter(), 0, 3);

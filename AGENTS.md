@@ -18,7 +18,6 @@ Read these files before making design or behavior changes:
 
 - `src/PostgresCopy` is the core CLI and migration engine.
 - `src/PostgresCopy.Desktop` is the native one-window C# GUI.
-- `src/PostgresCopy.Web` is an interim local web prototype for no-terminal use.
 - `tests/PostgresCopy.Tests` contains unit tests for parsing, validation, planning, and safety helpers.
 - `tests/integration` contains Docker-backed PostgreSQL seed files.
 - `scripts/integration-test.ps1` is the manual integration check.
@@ -31,7 +30,6 @@ Do:
 - Prefer Npgsql directly.
 - Keep the CLI scriptable and stable.
 - Prefer a one-window native C# desktop GUI for no-terminal use.
-- Keep any interim web UI one-window, practical, and local while it exists.
 - Make destructive behavior explicit and confirmed.
 - Print or stream human-readable progress.
 - Fail before copying when preflight detects unsafe shape.
@@ -44,7 +42,7 @@ Do not:
 - Add non-PostgreSQL engines.
 - Add background services.
 - Add cloud-specific behavior.
-- Turn the local web prototype into the primary long-term UI.
+- Reintroduce a local web UI — the native desktop app is the no-terminal path.
 - Store credentials.
 - Print raw connection strings.
 - Add destructive defaults.
@@ -88,14 +86,6 @@ dotnet run --project src\PostgresCopy.Desktop
 
 Then verify the origin field, destination field, run button, cancel path, and operations log.
 
-For interim web UI changes:
-
-```powershell
-dotnet run --project src\PostgresCopy.Web --urls http://localhost:5087
-```
-
-Then verify the page loads and renders the origin field, destination field, run button, and operations log. Use `agent-browser` when available.
-
 For end-to-end database behavior, use:
 
 ```powershell
@@ -109,8 +99,7 @@ This requires Docker.
 - This repo targets `net10.0`.
 - `NuGet.config` clears user package sources and uses nuget.org because a missing user-level source has caused restores to fail.
 - Docker was not available in the current Codex environment when the integration script was added.
-- A running `PostgresCopy.Web` process can lock build outputs while the interim prototype exists. Stop it before rebuilding if MSBuild reports locked DLLs.
-- The user reported `pg_dump.exe` is available in PowerShell 7, but non-interactive checks did not resolve `pg_dump` by name in this session. Do not build schema-copy behavior on that assumption without verifying the path in the current shell.
+- The user reported `pg_dump.exe` is available in PowerShell 7, but non-interactive checks did not resolve `pg_dump` by name in this session. `SchemaCreator` checks PATH explicitly and reports a clear error if either tool is missing.
 
 ## Agile Working Style
 
@@ -125,7 +114,6 @@ This requires Docker.
 
 Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
-- **Replace or de-emphasize the interim web prototype.** Now that the native Desktop GUI exists and is complete, the web prototype (`src/PostgresCopy.Web/`) should either be removed or explicitly marked as unsupported. See `TODO.md`.
 - **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
 - **CLI progress polish.** Consider `--progress` display refinements once the native GUI direction is settled and confirmed.
 - **`--schema-only` / `--data-only` CLI flags.** Add explicit flags to copy only DDL or only data without combining the two steps.

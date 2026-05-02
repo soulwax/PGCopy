@@ -8,7 +8,8 @@ First usable PostgresCopy build.
 
 - CLI workflow using origin and destination PostgreSQL connection strings.
 - Native one-window C# desktop app for no-terminal use.
-- Interim local one-window web prototype for no-terminal use.
+- Optional schema copy via `pg_dump --schema-only` (`--create-schema`).
+- SSH tunneling with `~/.ssh/config` auto-population in the desktop app.
 - Dry-run mode with origin/destination row counts.
 - Destination schema preflight:
   - table exists
@@ -21,15 +22,13 @@ First usable PostgresCopy build.
 - Foreign-key-aware table ordering for common parent/child copies.
 - Row-count verification with `--verify`.
 - Identity/serial sequence synchronization after copy.
-- Human-readable progress, partial failure summary, and interim web cancellation.
+- Human-readable progress and partial failure summary.
 - Docker-backed integration script.
-- Single-file publish scripts for CLI and interim web prototype.
-- Single-file publish script for the native desktop app.
+- Single-file publish scripts for CLI and the native desktop app.
 - Documented preference for native desktop UI over a localhost web UI.
 
 ### Not Included
 
-- Schema generation or schema copy.
 - Non-PostgreSQL engines.
 - Conflict resolution/upserts.
 - Background services.

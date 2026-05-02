@@ -1,12 +1,10 @@
 param(
-    [switch]$IncludeIntegration,
-    [int]$WebPort = 5087
+    [switch]$IncludeIntegration
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$webUrl = "http://localhost:$WebPort"
 
 function Test-PowerShellFile {
     param([string]$Path)
@@ -19,19 +17,6 @@ function Test-PowerShellFile {
         $messages = $errors | ForEach-Object { "${Path}: $($_.Message)" }
         throw ($messages -join [Environment]::NewLine)
     }
-}
-
-function Stop-WebPort {
-    param([int]$Port)
-
-    $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-    if (-not $connections) {
-        return
-    }
-
-    $connections |
-        Select-Object -ExpandProperty OwningProcess -Unique |
-        ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
 }
 
 function Invoke-Native {
@@ -61,38 +46,6 @@ try {
 
     Write-Host "Checking CLI help..."
     Invoke-Native "dotnet" @("run", "--project", "src/PostgresCopy", "--", "--help")
-
-    Write-Host "Checking web app..."
-    Stop-WebPort $WebPort
-    $serverProcess = Start-Process `
-        -FilePath dotnet `
-        -ArgumentList @("run", "--project", "src/PostgresCopy.Web", "--urls", $webUrl) `
-        -WorkingDirectory $root `
-        -WindowStyle Hidden `
-        -PassThru
-
-    try {
-        Start-Sleep -Seconds 4
-        $response = Invoke-WebRequest -UseBasicParsing $webUrl
-        $requiredContent = @(
-            "Run dry run",
-            "ready-mode",
-            "postgres://user:password@localhost:5432/source",
-            "Cancel",
-            "Verify counts"
-        )
-        $missingContent = $requiredContent | Where-Object {
-            $response.Content -notmatch [regex]::Escape($_)
-        }
-
-        if ($missingContent.Count -gt 0) {
-            throw "Web smoke check missing content: $($missingContent -join ', ')"
-        }
-    }
-    finally {
-        Stop-Process -Id $serverProcess.Id -Force -ErrorAction SilentlyContinue
-        Stop-WebPort $WebPort
-    }
 
     if ($IncludeIntegration) {
         if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {

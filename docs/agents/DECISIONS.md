@@ -97,3 +97,9 @@ Reason: the alternative (per-field credential entry) is more machinery for no se
 `SshConfigReader` parses `%USERPROFILE%\.ssh\config` at startup. The SSH Tunnel tab shows a dropdown of named hosts from that file (wildcard patterns are skipped). Selecting a host pre-fills SSH host, port, username, and key path.
 
 Reason: reduces friction for users who already have SSH hosts configured. The user requested this explicitly.
+
+## 2026-05-02: Web Prototype Removed
+
+`src/PostgresCopy.Web/`, the `Start-PostgresCopy-Web*.cmd` launchers, and the `run-web` / `publish-web` / `run-published-web` scripts were deleted. The Web project was removed from the solution. `scripts/check.ps1` no longer builds or smoke-tests a web app.
+
+Reason: the native Desktop GUI now covers every workflow the web prototype provided plus more (SSH tunnel, `~/.ssh/config` auto-population, schema copy). Maintaining two UI surfaces violates the "one tool, one job" rule. The decision to use a native desktop GUI over a local web server is preserved in the 2026-04-30 entry above; do not reintroduce a web UI without revisiting that decision first.

@@ -47,8 +47,6 @@ The native GUI should:
 - make dangerous options visually and procedurally explicit
 - avoid requiring a separate localhost web server
 
-The interim web prototype should stay thin and should not grow beyond proving the no-terminal workflow.
-
 ## Test Quality
 
 Unit tests should cover the logic that does not require PostgreSQL.
@@ -70,6 +68,6 @@ Pause and simplify if a change introduces:
 - provider abstractions for non-PostgreSQL databases
 - persistent credential storage
 - background daemons
-- local web server requirements for the final GUI
+- a return of a localhost web UI in any form
 - complex config files before CLI flags are stable
 - UI pages that do not directly help run or inspect a migration

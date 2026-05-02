@@ -1,251 +1,288 @@
-# PostgresCopy
+<h1 align="center">PostgresCopy</h1>
 
-PostgresCopy is a small C# tool for copying PostgreSQL table data from one database to another.
+<p align="center">
+  <img src="src/PostgresCopy.Desktop/Assets/kabuki-db-jump.png" alt="PostgresCopy logo — a kabuki kitsune leaping from database A to database B" width="240"/>
+</p>
 
-The MVP is intentionally narrow:
+<p align="center">
+  <em>Copy a PostgreSQL database into another PostgreSQL database — safely, visibly, and with one window or one CLI line.</em>
+</p>
 
-- PostgreSQL only.
-- Origin and destination are supplied as connection strings or `postgres://` URLs.
-- Optionally copies the destination schema from origin via `pg_dump --schema-only`.
-- Data is copied table by table with PostgreSQL binary `COPY`.
-- SSH tunneling for databases reachable only through a jump host.
-- Destination truncation is explicit and confirmed.
+---
 
-## Usage
+## What It Is
+
+PostgresCopy is a small, focused C# tool that copies the contents of one PostgreSQL database into another. You give it two connection strings; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies row counts when it's done.
+
+It is deliberately *not* a generic ETL framework. It does one thing — clone a Postgres database — and tries to do that without surprises.
+
+**Two ways to run it:**
+- **Native desktop app** — a single Windows Forms window. Paste two URLs, dry-run, copy, watch progress.
+- **CLI** — scriptable, pipeable, automation-friendly.
+
+Both share the same migration core, so behavior is identical.
+
+## Highlights
+
+- **Binary COPY** for fast streaming data transfer (no row-at-a-time inserts).
+- **Optional schema copy** via `pg_dump --schema-only` if the destination is empty.
+- **SSH tunneling** for databases reachable only through a jump host, with auto-population from `~/.ssh/config`.
+- **Dry-run by default** — every workflow starts with a no-op preview.
+- **Foreign-key-aware ordering** — parent tables copy before children.
+- **Row-count verification** with `--verify`.
+- **Sequence sync** — identity/serial sequences are realigned after copy so new inserts don't collide.
+- **Truncate gate** — destination truncation requires an explicit flag *and* a `TRUNCATE` confirmation.
+- **No stored credentials, no background service, no telemetry.**
+
+## Quick Start
+
+### Prerequisites
+
+- **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download)). The project targets `net10.0` exclusively.
+- **PostgreSQL 13+** as origin and destination.
+- *(Optional)* `pg_dump` and `psql` on PATH if you want `--create-schema`.
+- *(Optional)* Docker if you want to run the integration test script.
+
+### Run the desktop app from source
+
+```powershell
+.\Start-PostgresCopy-Desktop.cmd
+```
+
+Or, equivalently:
+
+```powershell
+dotnet run --project src\PostgresCopy.Desktop
+```
+
+### Run the CLI from source
 
 ```bash
 dotnet run --project src/PostgresCopy -- \
-  --origin "postgres://postgres:secret@localhost:5432/source" \
-  --destination "postgres://postgres:secret@localhost:5433/target"
+  --origin      "postgres://postgres:secret@localhost:5432/source" \
+  --destination "postgres://postgres:secret@localhost:5433/target" \
+  --dry-run
 ```
 
-By default, PostgresCopy copies all base tables in the `public` schema.
+Always start with `--dry-run` against a new pair of databases.
 
-Useful options:
+## Workflow — Desktop App
+
+The desktop window has two tabs (**Connection** and **SSH Tunnel**) and a live operations log at the bottom.
+
+### 1. Connection tab
+
+| Field | Purpose |
+|---|---|
+| **Origin URL** | `postgres://user:pwd@host:5432/source` or any Npgsql connection string. |
+| **Destination URL** | Same shape, must point to a *different* database. |
+| **Schema** | Defaults to `public`. |
+| **Tables** | Optional, comma-separated. Empty = all base tables in the schema. |
+| **Dry run** | On by default. Performs every check and reports counts without copying. |
+| **Verify counts** | Compares origin and destination row counts after the copy. |
+| **Truncate destination** | Empties planned destination tables before copying (requires typing `TRUNCATE` to confirm). |
+| **Create schema (requires pg_dump)** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. |
+
+### 2. SSH Tunnel tab *(optional)*
+
+If your database is only reachable via an SSH jump host:
+
+1. Pick a host from the **~/.ssh/config** dropdown (auto-populated from `%USERPROFILE%\.ssh\config`) — or fill the fields manually.
+2. Check **Origin**, **Destination**, or both under **Tunnel for**.
+3. Choose authentication: password or private key file.
+4. Set **Remote host** to where PostgreSQL is visible *from the SSH server* (typically `localhost:5432`).
+
+The tunnel is established before the migration starts and torn down in `finally` when the run ends.
+
+### 3. Copy checklist
+
+1. *(Empty destination?)* Check **Create schema**.
+2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
+3. Paste both URLs.
+4. Keep **Dry run** checked. Click **Run dry run**. Read the operations log carefully.
+5. *(Replacing existing data?)* Check **Truncate destination** and type `TRUNCATE`.
+6. Uncheck **Dry run**, keep **Verify counts** checked, click **Run copy**.
+7. Watch the log. The final line reports tables copied and rows transferred.
+
+The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`.
+
+## Workflow — CLI
 
 ```bash
---schema public
---table users
---tables users,orders,products
---dry-run
---verify
---truncate-destination --yes
---verbose
+dotnet run --project src/PostgresCopy -- \
+  --origin      "postgres://postgres:secret@localhost:5432/source" \
+  --destination "postgres://postgres:secret@localhost:5433/target" \
+  --create-schema \
+  --verify
 ```
 
-## Try It Now
+### All options
 
-Run the native desktop app:
+| Flag | Effect |
+|---|---|
+| `--origin <url>` | Origin URL or Npgsql connection string. **Required.** |
+| `--destination <url>` | Destination URL or Npgsql connection string. **Required.** |
+| `--schema <name>` | Schema to copy. Defaults to `public`. |
+| `--table <name>` | Copy a single table. May be passed multiple times. |
+| `--tables <csv>` | Copy comma-separated tables. |
+| `--create-schema` | Run `pg_dump --schema-only` from origin into destination first. |
+| `--dry-run` | Print the plan, validate, report counts — but copy nothing. |
+| `--truncate-destination` | Empty destination tables before copying. |
+| `--yes` | Skip the interactive `TRUNCATE` confirmation (for scripts). |
+| `--verify` | Compare origin and destination row counts after the copy. |
+| `--batch-size <n>` | Reserved for future use. Defaults to 10000. |
+| `--verbose` | Print stack traces for unexpected failures. |
+| `--help` | Show the built-in help. |
 
-```powershell
-.\Start-PostgresCopy-Desktop.cmd
-```
-
-Run the CLI from source:
+### Scripted use
 
 ```bash
-dotnet run --project src/PostgresCopy -- --help
+dotnet run --project src/PostgresCopy -- \
+  --origin      "$ORIGIN_URL" \
+  --destination "$DEST_URL" \
+  --truncate-destination --yes \
+  --verify
 ```
 
-Build the self-contained CLI:
+Exit code is non-zero on any failure, validation error, or count mismatch.
+
+## How a Copy Runs
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ 1. Validate connection strings (origin ≠ destination)         │
+│ 2. (Optional) pg_dump --schema-only origin | psql destination │
+│ 3. Open Npgsql connections                                    │
+│ 4. Discover origin tables + foreign-key dependencies          │
+│ 5. Topologically sort tables by FK dependency                 │
+│ 6. Preflight: every planned table exists on destination       │
+│                with matching columns in matching order        │
+│ 7. (Dry run?) Report counts and stop                          │
+│ 8. (Truncate?) Empty destination tables                       │
+│ 9. For each table:                                            │
+│      a. COPY <table> TO STDOUT (BINARY)   on origin           │
+│      b. COPY <table> FROM STDIN (BINARY)  on destination      │
+│      c. Stream-pipe between the two                           │
+│      d. Log progress per table                                │
+│ 10. Realign sequences on destination                          │
+│ 11. (Verify?) Compare row counts; fail on mismatch            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## Safety Model
+
+PostgresCopy refuses to act when something looks wrong:
+
+- **Origin = destination.** The two connection strings must normalize to different databases.
+- **Schema mismatch.** Every planned destination table must exist with matching columns in matching order. The migration aborts before any data is copied.
+- **Non-empty destination.** Append-into-existing is refused; you must explicitly opt into `--truncate-destination`.
+- **Truncate confirmation.** CLI requires `--yes` or an interactive confirmation. The GUI requires typing `TRUNCATE` literally.
+- **Credentials.** Passwords are redacted in every log line. Connection strings are never written to disk.
+
+Stack traces are hidden behind `--verbose` so accidental log capture doesn't leak internals.
+
+## Build, Test, Run
+
+### One-shot check before committing
 
 ```powershell
-.\scripts\publish-cli.ps1
+dotnet build PostgresCopy.sln
+dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
 ```
 
-The published CLI lands at:
+Or use the bundled script:
 
 ```powershell
-.\artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe --help
+.\scripts\check.ps1                      # build + unit tests + CLI smoke
+.\scripts\check.ps1 -IncludeIntegration  # adds the Docker integration run
 ```
 
-## Native Desktop App
+### Project layout
 
-For no-terminal use, PostgresCopy includes a small native C# desktop app over the existing migration core. It does not need a separate local web server just to collect an origin URL, a destination URL, options, and a progress log.
+```
+src/
+  PostgresCopy/          Core library + CLI
+    Cli/                 Argument parsing, help text
+    Config/              Settings, validation, connection string handling
+    Database/            Postgres inspection, identifier quoting
+    Migration/           Planning, copying, schema creation, verification
+    Logging/             Progress events
+  PostgresCopy.Desktop/  Windows Forms GUI
+    Assets/              Embedded logo
+    MainForm.cs          One-window UI
+    SshTunnelConnection.cs / SshConfigReader.cs
 
-The native GUI stays as small as the CLI:
+tests/
+  PostgresCopy.Tests/    xUnit unit tests (no DB required)
+  integration/           Docker Compose + SQL seeds for the manual integration run
 
-- one window
-- origin and destination URL fields
-- schema/table filters
-- dry-run first
-- verify counts
-- explicit destination truncation with `TRUNCATE` confirmation
-- live operations log
-- cancel button
-- no stored credentials
-- no background service
+scripts/                 PowerShell launchers, publish + check scripts
+```
 
-Run it from source:
+### Run the unit tests
+
+Unit tests cover argument parsing, settings validation, planner FK ordering, identifier quoting, and credential redaction. They do not need a running PostgreSQL.
 
 ```powershell
-.\Start-PostgresCopy-Desktop.cmd
+dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj
 ```
 
-Or publish and run the self-contained desktop app:
+### Run the integration test (Docker)
 
-```powershell
-.\scripts\publish-desktop.ps1
-.\Start-PostgresCopy-Desktop-Published.cmd
-```
-
-The current `src/PostgresCopy.Web` project is an interim prototype for the no-terminal workflow. Keep it useful while it exists, but do not treat a localhost web app as the preferred final UI.
-
-## Interim Web Prototype
-
-Until the native desktop app exists, the local web prototype can still be run for manual testing:
-
-```powershell
-.\Start-PostgresCopy-Web.cmd
-```
-
-It is local only, does not store database URLs, and should not grow into a hosted dashboard or background service.
-
-## Schema Copy
-
-If the destination database does not yet have any tables, check **Create schema (requires pg_dump)** in the GUI or pass `--create-schema` on the CLI. This runs `pg_dump --schema-only --no-owner --no-acl` against the origin and pipes the result into the destination before the data copy starts.
-
-Requirements:
-- `pg_dump` and `psql` must be on your PATH.
-- Use a **direct** (non-pooled) connection string for the origin. Neon pooled hostnames (`*.pooler.neon.tech`) cannot be used with `pg_dump`.
-
-## SSH Tunnel
-
-If your PostgreSQL database is only reachable through an SSH jump host, enable the **SSH Tunnel** tab in the desktop app:
-
-1. Select a host from the **~/.ssh/config** dropdown (if you have one) or fill in the fields manually.
-2. Check **Origin** or **Destination** (or both) under **Tunnel for**.
-3. Fill in the SSH host, port, username, and authentication method.
-4. Set **Remote host** to where PostgreSQL is visible from the SSH server (usually `localhost:5432`).
-
-The tunnel is established before the migration starts and torn down automatically afterwards.
-
-## Copy Checklist
-
-1. If the destination database has no tables, check **Create schema**.
-2. If the database is behind an SSH jump host, configure the **SSH Tunnel** tab.
-3. Start the native desktop app or CLI.
-4. Paste origin and destination URLs.
-5. Keep **Dry run** checked and click **Run dry run**.
-6. Review the operations log, especially destination row counts.
-7. If destination tables contain data and you want to replace it, check **Truncate destination** and type `TRUNCATE`.
-8. Uncheck **Dry run**.
-9. Keep **Verify counts** checked.
-10. Click **Run copy**.
-
-## Safety
-
-PostgresCopy refuses to run when origin and destination normalize to the same database. Passwords are redacted in console output, and a migration plan is printed before any data copy starts.
-
-This version does not drop, recreate, or overwrite schema objects. Destination tables can be truncated only with the explicit `--truncate-destination` flag or an equivalent GUI checkbox, and both require confirmation. If destination tables are missing or incompatible, the migration fails loudly before copying.
-
-PostgresCopy also refuses to append into non-empty destination tables. Use explicit truncation when you want to replace destination data.
-
-Dry-run mode still connects to both databases, checks destination readiness, and reports origin/destination row counts. It does not copy or truncate data.
-
-If you filter to specific tables, PostgresCopy validates that those tables exist in the origin before checking or copying the destination.
-
-## Development
-
-```bash
-dotnet restore
-dotnet build
-dotnet test
-```
-
-The current project targets `net10.0`.
-
-Run the local non-Docker check suite:
-
-```powershell
-.\scripts\check.ps1
-```
-
-Run it with Docker integration enabled:
-
-```powershell
-.\scripts\check.ps1 -IncludeIntegration
-```
-
-## Publish
-
-Create a self-contained Windows CLI build:
-
-```powershell
-.\scripts\publish-cli.ps1
-```
-
-Create a self-contained Windows desktop build:
-
-```powershell
-.\scripts\publish-desktop.ps1
-```
-
-The interim web prototype also has a publish script while it remains in the repo:
-
-```powershell
-.\scripts\publish-web.ps1
-```
-
-Publish scripts write to `artifacts/`.
-
-## Known Limits
-
-- Destination schema is either copied via `--create-schema` / `pg_dump` or must already exist.
-- Copies are table-data transfers, not upserts or conflict resolution.
-- Foreign-key ordering covers discoverable dependencies in the selected tables.
-- The current web UI is a temporary prototype, not the intended long-term UI.
-- Docker is required only for the integration script.
-
-## Current Release
-
-Current version: `0.1.0`
-
-See [RELEASE_NOTES.md](RELEASE_NOTES.md) for the included behavior and deliberate omissions.
-
-## Integration Check
-
-The repo includes a small Docker-backed integration check with two PostgreSQL databases:
+The integration script spins up two PostgreSQL containers, seeds the origin, runs PostgresCopy, and compares row counts.
 
 ```powershell
 .\scripts\integration-test.ps1
+.\scripts\integration-test.ps1 -KeepContainers  # leave the containers running for inspection
 ```
 
-It starts an origin database with sample data, starts a destination database with matching empty tables, runs PostgresCopy, then compares row counts.
+Requires Docker Desktop or compatible runtime.
 
+## Publishing Self-Contained Builds
+
+Both the CLI and the desktop app can be published as single-file, self-contained Windows executables.
+
+```powershell
+.\scripts\publish-cli.ps1
+.\scripts\publish-desktop.ps1
+```
+
+Output lands under `artifacts/`:
+
+```
+artifacts/
+  PostgresCopy-cli-win-x64/PostgresCopy.exe
+  PostgresCopy-desktop-win-x64/PostgresCopy.Desktop.exe
+```
+
+Convenience launchers for the published builds:
+
+```powershell
+.\Start-PostgresCopy-Desktop-Published.cmd
+```
+
+## Known Limits
+
+- Destination schema is either copied via `--create-schema`/`pg_dump` *or* must already exist.
+- Copies are bulk table-data transfers, not upserts or conflict resolution.
+- FK ordering covers discoverable in-schema dependencies only.
+- `pg_dump` cannot use Neon pooled connection strings (`*.pooler.neon.tech`) — use a direct connection for `--create-schema`.
+- Windows-first: the desktop GUI is Windows Forms (`net10.0-windows`). The CLI itself is OS-agnostic.
 
 ## FAQ
 
-#### Why PostgreSQL only?
+**Why PostgreSQL only?** A clear scope. Adding other engines would invite an ORM and a configuration framework, which would dilute everything.
 
-Because I needed a clear scope and this exact tool for myself.
+**Why a CLI *and* a desktop app instead of a web UI?** A local web server is more machinery than this tool needs. The desktop app feels like the small utility it is — the CLI handles automation. A localhost web prototype existed early on and was deliberately removed.
 
-#### Why PostgreSQL in general?
+**Why C# and .NET 10?** Strong PostgreSQL story (Npgsql), excellent async I/O, simple single-file publishing for both CLI and Windows Forms.
 
-It can do the following things other databases only can dream of:
-- Store JSON documents and query them with SQL.
-- Perform complex queries with CTEs, window functions, and more.
-- Handle large datasets efficiently with features like partitioning and indexing.
-- Support advanced data types like arrays, hstore, and custom types.
-- Be extended with custom functions, operators, and data types.
-- Be used for both OLTP and OLAP workloads.
-
-#### Why a CLI?
-
-- It's simple and scriptable. The native C# desktop GUI is the no-terminal companion.
-
-#### Why not keep the web app as the main GUI?
-
-- A local web server is more machinery than this tool needs. The no-terminal experience should feel like a small desktop utility: paste two URLs, dry-run, copy, watch progress, done.
-
-#### Why C#?
-
-- It's a clean language with great libraries for database access and CLI development. I also wanted to practice my C# skills.
-
-#### Why not use an existing tool?
-
-- I wanted a tool that is simple, focused, and easy to run without installing anything extra. Existing tools often have more features than I need and require additional setup. This way I can control exactly how the copy works and learn a lot in the process.
+**Why not just use `pg_dump | pg_restore`?** PostgresCopy uses `pg_dump` for the optional schema step, but for data it streams binary COPY directly between the two live databases — no intermediate file, with live progress, FK-aware ordering, sequence sync, and verification baked in. For one-off operator work, `pg_dump | pg_restore` is fine. For a tool you'll run repeatedly, this is friendlier.
 
 ## License
 
-This project is licensed under the GPLv3.0 License. See the [LICENSE](LICENSE.md) file for details.
+GPLv3.0 — see [LICENSE.md](LICENSE.md).
+
+## Release
+
+Current version: **0.1.0** — see [RELEASE_NOTES.md](RELEASE_NOTES.md).

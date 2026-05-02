@@ -52,46 +52,6 @@ Expected native GUI controls:
 - cancel
 - operations log
 
-## Interim Web Prototype
-
-The current web project is a temporary prototype, not the desired long-term GUI. Use it only while it remains useful for manual no-terminal testing.
-
-```powershell
-dotnet run --project src\PostgresCopy.Web --urls http://localhost:5087
-```
-
-Or use the launcher:
-
-```powershell
-.\scripts\run-web.ps1
-```
-
-Open:
-
-```text
-http://localhost:5087
-```
-
-Expected controls:
-
-- origin database URL
-- destination database URL
-- schema
-- tables
-- dry run
-- truncate destination
-- run copy
-- clear log
-- operations log
-
-If the build fails with locked DLLs, check for a running interim web process:
-
-```powershell
-Get-NetTCPConnection -LocalPort 5087 -ErrorAction SilentlyContinue
-```
-
-Then stop the owning process only if it is the local dev server you started.
-
 ## Integration Check
 
 Requires Docker.
@@ -119,7 +79,6 @@ The script should:
 ```powershell
 .\scripts\publish-cli.ps1
 .\scripts\publish-desktop.ps1
-.\scripts\publish-web.ps1
 ```
 
 Outputs go under `artifacts/`, which is ignored by git.
