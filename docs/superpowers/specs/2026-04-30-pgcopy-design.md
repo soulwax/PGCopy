@@ -7,13 +7,13 @@
 
 Cloning a Postgres database currently requires knowing pg_dump flags, psql invocation, and managing the pipe yourself. PGCopy should make this guided and visible: you give it an origin URL and a destination URL, review a plan, and run the copy.
 
-Current direction: keep the CLI first-class and use a small native C# desktop GUI for no-terminal use. A separate local web server is not preferred for a utility that only needs input fields, options, and an operations log.
+Current direction: lead with the small native C# desktop GUI and publishable Windows `.exe`; keep the CLI stable as the automation companion over the same migration core. A separate local web server is not preferred for a utility that only needs input fields, options, and an operations log.
 
 ## Decisions
 
 | Question | Decision | Rationale |
 |---|---|---|
-| Invocation model | CLI first, native desktop GUI for no-terminal use | Scriptable by default, easy without a terminal |
+| Invocation model | Native desktop `.exe` first, CLI for automation | Easy without a terminal, still scriptable |
 | Copy strategy | Hybrid: pg_dump schema + Npgsql binary COPY data | Best of both: pg_dump handles DDL complexity; Npgsql gives per-table live progress |
 | GUI direction | Native C# desktop, not a localhost web app | A small desktop shell fits the job better than a web server |
 | Dest conflict | Wipe + overwrite with confirmation | True 1:1 clone semantics |

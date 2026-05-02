@@ -2,11 +2,11 @@
 
 This is a lightweight decision log for future agents.
 
-## 2026-04-30: Keep the CLI as the Core
+## 2026-04-30: Keep the Migration Core Shared
 
-The CLI remains first-class and scriptable. Any no-terminal UI must stay a thin wrapper around the same core migration code.
+The migration engine in `src/PostgresCopy` remains shared. The CLI stays scriptable and stable, and any no-terminal UI must stay a thin wrapper around the same core migration code.
 
-Reason: PostgresCopy should work in automation and should also be easy to use without a terminal.
+Reason: PostgresCopy should work in automation and should also be easy to use without a terminal. The core behavior must not fork by surface.
 
 ## 2026-04-30: Target .NET 10
 
@@ -16,7 +16,7 @@ Reason: the user requested the latest .NET framework available in this environme
 
 ## 2026-04-30: Use a Native C# Desktop GUI
 
-The no-terminal experience is a small native C# desktop GUI in `src/PostgresCopy.Desktop`. The current `src/PostgresCopy.Web` project is an interim prototype and should not become the long-term product UI.
+The no-terminal experience is a small native C# desktop GUI in `src/PostgresCopy.Desktop`. The desktop app is the primary human-facing product surface. The old `src/PostgresCopy.Web` project was an interim prototype and should not become the long-term product UI.
 
 Reason: PostgresCopy only needs a few inputs, clear options, and live output. A localhost web server is unnecessary machinery for that job, while a native desktop shell keeps the app closer to a simple C# utility.
 
@@ -64,9 +64,9 @@ Reason: the logic in `Cli`, `Config`, and `Migration` is testable without a real
 
 ## 2026-04-30: Do Not Assume pg_dump Is on PATH
 
-Schema-copy behavior via `pg_dump` and `psql` has not been implemented. Before building anything that shells out to these tools, verify their path in the shell that will actually launch the app. Non-interactive sessions in this environment did not resolve `pg_dump` by name even when it was available in an interactive shell.
+Schema-copy behavior via `pg_dump` and `psql` depends on external PostgreSQL client tools. Any code that shells out to these tools must verify their path in the shell that will actually launch the app. Non-interactive sessions in this environment did not resolve `pg_dump` by name even when it was available in an interactive shell.
 
-Reason: silent tool-not-found failures during copy are worse than an unimplemented feature. Verify the path explicitly and fail with a useful message if it is missing.
+Reason: silent tool-not-found failures during copy are worse than a clear preflight failure. Verify the path explicitly and fail with a useful message if it is missing.
 
 ## 2026-05-01: This Environment Has .NET 10 Only
 
@@ -103,3 +103,9 @@ Reason: reduces friction for users who already have SSH hosts configured. The us
 `src/PostgresCopy.Web/`, the `Start-PostgresCopy-Web*.cmd` launchers, and the `run-web` / `publish-web` / `run-published-web` scripts were deleted. The Web project was removed from the solution. `scripts/check.ps1` no longer builds or smoke-tests a web app.
 
 Reason: the native Desktop GUI now covers every workflow the web prototype provided plus more (SSH tunnel, `~/.ssh/config` auto-population, schema copy). Maintaining two UI surfaces violates the "one tool, one job" rule. The decision to use a native desktop GUI over a local web server is preserved in the 2026-04-30 entry above; do not reintroduce a web UI without revisiting that decision first.
+
+## 2026-05-02: Desktop Executable Is the Default User Path
+
+Documentation, agent guidance, and release-facing work should lead with the native Windows desktop `.exe`. The CLI remains supported for automation, smoke checks, and shared-core parity, but it should not be presented as the default manual workflow.
+
+Reason: the app now has a complete one-window GUI with connection fields, SSH tunnel configuration, schema copy, dry-run, destructive confirmation, cancel, and live operations log. That is the friendliest path for the intended no-terminal use case.

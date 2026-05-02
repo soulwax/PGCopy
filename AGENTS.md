@@ -2,7 +2,7 @@
 
 Guidance for coding agents working on PostgresCopy.
 
-PostgresCopy has one job: copy PostgreSQL data from an origin database to a destination database in a way that is predictable, visible, and safe. Keep every change in service of that job.
+PostgresCopy has one job: copy PostgreSQL data from an origin database to a destination database in a way that is predictable, visible, and safe. The primary user experience is now the native Windows desktop `.exe`; keep every change in service of that focused GUI workflow and the shared migration core behind it.
 
 ## Start Here
 
@@ -16,8 +16,8 @@ Read these files before making design or behavior changes:
 
 ## Current Shape
 
-- `src/PostgresCopy` is the core CLI and migration engine.
-- `src/PostgresCopy.Desktop` is the native one-window C# GUI.
+- `src/PostgresCopy.Desktop` is the main product surface: the native one-window C# GUI and publishable Windows `.exe`.
+- `src/PostgresCopy` is the shared migration engine plus the scriptable CLI companion.
 - `tests/PostgresCopy.Tests` contains unit tests for parsing, validation, planning, and safety helpers.
 - `tests/integration` contains Docker-backed PostgreSQL seed files.
 - `scripts/integration-test.ps1` is the manual integration check.
@@ -28,8 +28,8 @@ Do:
 
 - Keep the app PostgreSQL-only.
 - Prefer Npgsql directly.
-- Keep the CLI scriptable and stable.
-- Prefer a one-window native C# desktop GUI for no-terminal use.
+- Keep the native desktop `.exe` as the default no-terminal workflow.
+- Keep the CLI scriptable and stable for automation, tests, and power users.
 - Make destructive behavior explicit and confirmed.
 - Print or stream human-readable progress.
 - Fail before copying when preflight detects unsafe shape.
@@ -52,15 +52,15 @@ Do not:
 - Origin and destination must not normalize to the same database.
 - Destination schema/table mismatch must fail before data copy.
 - Destructive actions require an explicit flag or UI checkbox.
-- CLI destructive actions require `--yes` or an interactive confirmation.
 - GUI destructive actions require typing `TRUNCATE`.
+- CLI destructive actions require `--yes` or an interactive confirmation.
 - Never silently skip a failed table.
 - Keep stack traces behind `--verbose` in CLI paths.
 
 ## Architecture Rules
 
 - Keep schema handling separate from data transfer.
-- Keep UI thin; shared behavior belongs in `src/PostgresCopy`.
+- Keep the desktop UI thin; shared behavior belongs in `src/PostgresCopy`.
 - Do not require a localhost web server for the final no-terminal experience.
 - Keep `Program.cs` readable. If orchestration grows, extract a small service.
 - Keep table/column SQL identifier quoting centralized in `SqlIdentifier`.
@@ -75,16 +75,21 @@ Run these before finalizing normal code changes:
 ```powershell
 dotnet build PostgresCopy.sln
 dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
-dotnet run --project src\PostgresCopy -- --help
 ```
 
-For native GUI changes:
+For desktop GUI or release-facing changes:
 
 ```powershell
 dotnet run --project src\PostgresCopy.Desktop
 ```
 
-Then verify the origin field, destination field, run button, cancel path, and operations log.
+Then verify the origin field, destination field, dry-run/copy button text, cancel path, SSH tab, logo/header, and operations log.
+
+For CLI changes, also run:
+
+```powershell
+dotnet run --project src\PostgresCopy -- --help
+```
 
 For end-to-end database behavior, use:
 
@@ -114,8 +119,9 @@ This requires Docker.
 
 Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
+- **Desktop executable polish.** Improve the published `.exe` experience: app icon, window sizing, visual affordances, and clearer first-run flow.
 - **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
-- **CLI progress polish.** Consider `--progress` display refinements once the native GUI direction is settled and confirmed.
+- **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 - **`--schema-only` / `--data-only` CLI flags.** Add explicit flags to copy only DDL or only data without combining the two steps.
 
 Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, and `~/.ssh/config` auto-population are all done.

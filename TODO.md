@@ -4,6 +4,10 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Next
 
+- [ ] Polish the desktop `.exe` as the default user path:
+  - [ ] app/window icon
+  - [ ] first-run sizing and header spacing
+  - [ ] published `.exe` smoke check notes
 - [x] Add destination preflight checks before copying:
   - [x] destination table exists
   - [x] destination columns match origin columns
@@ -15,7 +19,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## CLI
 
-- [x] Keep `--origin` and `--destination` as the primary workflow.
+- [x] Keep `--origin` and `--destination` as the automation workflow.
 - [x] Add a light prompt mode only when required values are missing.
 - [x] Improve `--dry-run` output with row counts and destination readiness.
 - [x] Keep future flags opt-in and obvious.
@@ -55,7 +59,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Later
 
-- Consider CLI progress polish only after the native GUI direction is settled.
+- Consider CLI progress polish only when it improves automation or matches desktop log clarity.
 - Add `--schema-only` and `--data-only` once the basic copy path is solid.
 - [x] Add publish scripts for single-file builds.
 

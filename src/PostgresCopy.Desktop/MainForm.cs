@@ -78,7 +78,7 @@ public sealed class MainForm : Form
 
         var logo = new LogoPanel
         {
-            Size = new Size(128, 128);
+            Size = new Size(128, 128),
             Margin = new Padding(0, 0, 18, 0),
         };
 

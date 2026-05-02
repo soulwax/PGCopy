@@ -16,18 +16,11 @@ Or run the standard non-Docker check suite:
 .\scripts\check.ps1
 ```
 
-## CLI Smoke Checks
-
-```powershell
-dotnet run --project src\PostgresCopy -- --help
-dotnet run --project src\PostgresCopy -- --origin "postgres://user:secret@localhost:5432/app" --destination "postgres://user:secret@localhost:5432/app" --dry-run
-```
-
-The second command should fail because origin and destination are identical.
-
 ## Native Desktop App
 
-The no-terminal app is a small native C# desktop GUI over the shared migration core.
+The main user path is the native Windows desktop `.exe` over the shared migration core.
+
+Run from source:
 
 ```powershell
 dotnet run --project src\PostgresCopy.Desktop
@@ -39,6 +32,18 @@ Or use the launcher:
 .\Start-PostgresCopy-Desktop.cmd
 ```
 
+Publish the self-contained `.exe`:
+
+```powershell
+.\scripts\publish-desktop.ps1
+```
+
+Run the published `.exe`:
+
+```powershell
+.\Start-PostgresCopy-Desktop-Published.cmd
+```
+
 Expected native GUI controls:
 
 - origin database URL
@@ -48,9 +53,24 @@ Expected native GUI controls:
 - dry run
 - truncate destination with `TRUNCATE` confirmation
 - verify counts
+- create schema
+- SSH tunnel configuration
 - run copy
 - cancel
 - operations log
+
+For GUI changes, verify the header/logo, origin field, destination field, run button, cancel path, SSH tab, and operations log.
+
+## CLI Smoke Checks
+
+The CLI is the scriptable automation companion. Run these after CLI changes and as part of normal checks:
+
+```powershell
+dotnet run --project src\PostgresCopy -- --help
+dotnet run --project src\PostgresCopy -- --origin "postgres://user:secret@localhost:5432/app" --destination "postgres://user:secret@localhost:5432/app" --dry-run
+```
+
+The second command should fail because origin and destination are identical.
 
 ## Integration Check
 
@@ -77,17 +97,17 @@ The script should:
 ## Publish
 
 ```powershell
-.\scripts\publish-cli.ps1
 .\scripts\publish-desktop.ps1
+.\scripts\publish-cli.ps1
 ```
 
 Outputs go under `artifacts/`, which is ignored by git.
 
 ## PostgreSQL Client Tools
 
-The original design allows future schema copy via `pg_dump` and `psql`, but the current app primarily uses Npgsql binary COPY for data.
+Schema copy uses `pg_dump` and `psql`; data copy uses Npgsql binary COPY.
 
-Before adding schema-copy behavior, verify tool paths in the shell that will launch the app:
+When changing schema-copy behavior, verify tool paths in the shell that will launch the app:
 
 ```powershell
 pwsh -NoProfile -Command "Get-Command pg_dump, psql"

@@ -2,12 +2,12 @@
 
 ## 0.1.0
 
-First usable PostgresCopy build.
+First usable PostgresCopy build, centered on the native desktop `.exe` with a scriptable CLI companion.
 
 ### Included
 
-- CLI workflow using origin and destination PostgreSQL connection strings.
 - Native one-window C# desktop app for no-terminal use.
+- CLI workflow using origin and destination PostgreSQL connection strings.
 - Optional schema copy via `pg_dump --schema-only` (`--create-schema`).
 - SSH tunneling with `~/.ssh/config` auto-population in the desktop app.
 - Dry-run mode with origin/destination row counts.
@@ -24,7 +24,7 @@ First usable PostgresCopy build.
 - Identity/serial sequence synchronization after copy.
 - Human-readable progress and partial failure summary.
 - Docker-backed integration script.
-- Single-file publish scripts for CLI and the native desktop app.
+- Single-file publish scripts for the native desktop app and CLI.
 - Documented preference for native desktop UI over a localhost web UI.
 
 ### Not Included

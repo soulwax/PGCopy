@@ -4,7 +4,7 @@ Quick self-check for the next agent.
 
 ## Mission
 
-PostgresCopy should stay dead simple: paste or pass two PostgreSQL connection strings, see the plan, run the copy, get clear progress, and know if anything failed.
+PostgresCopy should stay dead simple: open the desktop `.exe`, paste two PostgreSQL connection strings, see the plan, run the copy, get clear progress, and know if anything failed. The CLI remains the automation companion, not the main human-facing path.
 
 ## Before Editing
 
@@ -14,7 +14,8 @@ PostgresCopy should stay dead simple: paste or pass two PostgreSQL connection st
 
 ## While Editing
 
-- Keep CLI and native GUI behavior backed by the same migration core.
+- Treat `src/PostgresCopy.Desktop` as the primary user surface.
+- Keep desktop and CLI behavior backed by the same migration core.
 - Do not reintroduce a web UI — the prototype was removed; the desktop app is the no-terminal path.
 - Keep destructive actions opt-in and confirmed.
 - Keep database SQL simple and quoted.
@@ -32,7 +33,7 @@ dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
 
 Also run `dotnet run --project src\PostgresCopy -- --help` after CLI changes.
 
-For native GUI changes, launch the desktop app and verify the one-window flow renders.
+For native GUI, documentation, or release-facing changes, launch the desktop app and verify the one-window flow renders. If publishing behavior changes, run or document `.\scripts\publish-desktop.ps1`.
 
 ## Current Caution
 

@@ -1,24 +1,32 @@
 <h1 align="center">PostgresCopy</h1>
 
 <p align="center">
-  <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="240"/>
+  <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="512" height="512" />
 </p>
 
 <p align="center">
-  <em>Copy a PostgreSQL database into another PostgreSQL database — safely, visibly, and with one window or one CLI line.</em>
+  <em>Copy a PostgreSQL database into another PostgreSQL database — safely and visibly from a small Windows desktop app.</em>
 </p>
 
 ---
 
 ## Quick Use (TL;DR)
 
-### Debug .exe
+### Recommended: desktop `.exe`
+
+Build and run from source:
+
+```powershell
+.\Start-PostgresCopy-Desktop.cmd
+```
+
+Or build a local debug `.exe`:
 
 ```powershell
 dotnet build src\PostgresCopy.Desktop -c Release
 ```
 
-Output: src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Desktop.exe — needs the .NET 10 runtime installed to run.
+Output: `src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Desktop.exe` — needs the .NET 10 runtime installed to run.
 
 ### Distributable (single-file, self-contained)
 
@@ -28,22 +36,22 @@ Output: src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Deskto
 
 Output: `artifacts\PostgresCopy-desktop-win-x64\PostgresCopy.Desktop.exe` — bundles the .NET runtime, runs on any Windows x64 machine without prerequisites.
 
-Same for the CLI: 
-`.\scripts\publish-cli.ps1` → artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe
+CLI automation build:
+`.\scripts\publish-cli.ps1` → `artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe`
 
 Make sure to get .NET 10 from https://dotnet.microsoft.com/download if you want to run the debug builds from source.
 
 ## What It Is
 
-PostgresCopy is a small, focused C# tool that copies the contents of one PostgreSQL database into another. You give it two connection strings; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies row counts when it's done.
+PostgresCopy is a small, focused Windows desktop utility that copies the contents of one PostgreSQL database into another. You paste two connection strings into one window; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies row counts when it's done.
 
 It is deliberately *not* a generic ETL framework. It does one thing — clone a Postgres database — and tries to do that without surprises.
 
 **Two ways to run it:**
-- **Native desktop app** — a single Windows Forms window. Paste two URLs, dry-run, copy, watch progress.
-- **CLI** — scriptable, pipeable, automation-friendly.
+- **Native desktop app** — the main workflow. Paste two URLs, configure SSH if needed, dry-run, copy, watch progress.
+- **CLI** — the automation companion. Scriptable, pipeable, and backed by the same migration core.
 
-Both share the same migration core, so behavior is identical.
+Both share the same migration core, so copy behavior is kept consistent.
 
 ## Highlights
 
@@ -78,7 +86,7 @@ Or, equivalently:
 dotnet run --project src\PostgresCopy.Desktop
 ```
 
-### Run the CLI from source
+### Run the CLI automation companion from source
 
 ```bash
 dotnet run --project src/PostgresCopy -- \
@@ -91,7 +99,7 @@ Always start with `--dry-run` against a new pair of databases.
 
 ## Workflow — Desktop App
 
-The desktop window has two tabs (**Connection** and **SSH Tunnel**) and a live operations log at the bottom.
+This is the default manual workflow. The desktop window has two tabs (**Connection** and **SSH Tunnel**) and a live operations log at the bottom.
 
 ### 1. Connection tab
 
@@ -129,7 +137,9 @@ The tunnel is established before the migration starts and torn down in `finally`
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`.
 
-## Workflow — CLI
+## Workflow — CLI Automation
+
+Use the CLI for repeatable scripts, CI smoke checks, or terminal-first workflows. For manual one-off copies, prefer the desktop app.
 
 ```bash
 dotnet run --project src/PostgresCopy -- \
@@ -220,17 +230,23 @@ Or use the bundled script:
 .\scripts\check.ps1 -IncludeIntegration  # adds the Docker integration run
 ```
 
+For desktop-facing changes, also launch the GUI:
+
+```powershell
+dotnet run --project src\PostgresCopy.Desktop
+```
+
 ### Project layout
 
 ```
 src/
-  PostgresCopy/          Core library + CLI
+  PostgresCopy/          Shared migration core + CLI automation companion
     Cli/                 Argument parsing, help text
     Config/              Settings, validation, connection string handling
     Database/            Postgres inspection, identifier quoting
     Migration/           Planning, copying, schema creation, verification
     Logging/             Progress events
-  PostgresCopy.Desktop/  Windows Forms GUI
+  PostgresCopy.Desktop/  Primary Windows Forms GUI and desktop .exe
     Assets/              Embedded logo
     MainForm.cs          One-window UI
     SshTunnelConnection.cs / SshConfigReader.cs
@@ -263,19 +279,19 @@ Requires Docker Desktop or compatible runtime.
 
 ## Publishing Self-Contained Builds
 
-Both the CLI and the desktop app can be published as single-file, self-contained Windows executables.
+The desktop app and CLI can be published as single-file, self-contained Windows executables. The desktop `.exe` is the primary release artifact for normal use.
 
 ```powershell
-.\scripts\publish-cli.ps1
 .\scripts\publish-desktop.ps1
+.\scripts\publish-cli.ps1
 ```
 
 Output lands under `artifacts/`:
 
 ```
 artifacts/
-  PostgresCopy-cli-win-x64/PostgresCopy.exe
   PostgresCopy-desktop-win-x64/PostgresCopy.Desktop.exe
+  PostgresCopy-cli-win-x64/PostgresCopy.exe
 ```
 
 Convenience launchers for the published builds:
@@ -296,7 +312,7 @@ Convenience launchers for the published builds:
 
 **Why PostgreSQL only?** A clear scope. Adding other engines would invite an ORM and a configuration framework, which would dilute everything.
 
-**Why a CLI *and* a desktop app instead of a web UI?** A local web server is more machinery than this tool needs. The desktop app feels like the small utility it is — the CLI handles automation. A localhost web prototype existed early on and was deliberately removed.
+**Why a desktop app *and* a CLI instead of a web UI?** A local web server is more machinery than this tool needs. The desktop app is the primary manual workflow and feels like the small utility it is; the CLI handles automation. A localhost web prototype existed early on and was deliberately removed.
 
 **Why C# and .NET 10?** Strong PostgreSQL story (Npgsql), excellent async I/O, simple single-file publishing for both CLI and Windows Forms.
 

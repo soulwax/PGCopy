@@ -6,9 +6,9 @@ Use this loop for PostgresCopy work.
 
 Choose one user-visible improvement:
 
+- better desktop `.exe` workflow
 - safer migration
 - clearer progress
-- easier no-terminal use
 - better verification
 - smaller failure surface
 
@@ -16,16 +16,16 @@ Avoid broad rewrites. This app should feel boring in the best way.
 
 ## 2. Find the Shared Core
 
-Before changing UI or CLI code, ask whether the behavior belongs in:
+Before changing desktop or CLI code, ask whether the behavior belongs in:
 
+- `PostgresCopy.Desktop` for desktop interaction, layout, SSH form wiring, and no-terminal affordances
 - `Cli` for argument parsing and terminal prompts
 - `Config` for validation and connection normalization
 - `Database` for PostgreSQL inspection and SQL helpers
 - `Migration` for planning, copying, cleanup, and verification
 - `Logging` for progress events
-- `PostgresCopy.Desktop` for desktop interaction
 
-If CLI or native GUI needs it, put it in the core project.
+If both the desktop app and CLI need it, put it in the core project. If only the desktop `.exe` needs it, keep it in `PostgresCopy.Desktop`.
 
 ## 3. Protect Data First
 
@@ -76,6 +76,7 @@ If the user can notice it, update at least one of:
 - `README.md`
 - `TODO.md`
 - native GUI labels
+- desktop publish/run scripts
 - CLI help text
 - integration script notes
 
