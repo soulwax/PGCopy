@@ -64,8 +64,8 @@ public sealed class MainForm : Form
             Padding = new Padding(16),
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var titleBar = new FlowLayoutPanel
@@ -93,13 +93,17 @@ public sealed class MainForm : Form
         titleBar.Controls.Add(logo);
         titleBar.Controls.Add(title);
 
-        var tabs = new TabControl { Dock = DockStyle.Fill };
+        var tabs = new TabControl
+        {
+            Dock = DockStyle.Fill,
+            MinimumSize = new Size(0, 330),
+        };
 
-        var connectionTab = new TabPage("Connection") { Padding = new Padding(8) };
+        var connectionTab = new TabPage("Connection") { Padding = new Padding(8), AutoScroll = true };
         connectionTab.Controls.Add(BuildInputPanel());
         tabs.TabPages.Add(connectionTab);
 
-        var sshTab = new TabPage("SSH Tunnel") { Padding = new Padding(8) };
+        var sshTab = new TabPage("SSH Tunnel") { Padding = new Padding(8), AutoScroll = true };
         sshTab.Controls.Add(BuildSshPanel());
         tabs.TabPages.Add(sshTab);
 
