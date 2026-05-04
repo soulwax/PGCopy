@@ -1,3 +1,5 @@
+# File: scripts/publish-cli.ps1
+
 param(
     [string]$Runtime = "win-x64",
     [string]$Configuration = "Release"

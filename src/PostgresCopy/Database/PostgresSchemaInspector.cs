@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Database/PostgresSchemaInspector.cs
+
 using Npgsql;
 
 namespace PostgresCopy.Database;

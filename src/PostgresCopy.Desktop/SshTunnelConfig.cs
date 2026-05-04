@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/SshTunnelConfig.cs
+
 namespace PostgresCopy.Desktop;
 
 public enum SshAuthType { Password, PrivateKey }

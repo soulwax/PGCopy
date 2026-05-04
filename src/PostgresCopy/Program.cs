@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Program.cs
+
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;

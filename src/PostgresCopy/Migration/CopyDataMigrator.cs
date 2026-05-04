@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/CopyDataMigrator.cs
+
 using Npgsql;
 using PostgresCopy.Database;
 using PostgresCopy.Logging;

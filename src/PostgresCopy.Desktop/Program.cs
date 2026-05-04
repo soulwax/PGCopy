@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/Program.cs
+
 namespace PostgresCopy.Desktop;
 
 internal static class Program

@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/PostgresSchemaInspectorTests.cs
+
 using PostgresCopy.Database;
 
 namespace PostgresCopy.Tests;

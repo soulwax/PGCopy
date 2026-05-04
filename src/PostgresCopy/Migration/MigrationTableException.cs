@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/MigrationTableException.cs
+
 namespace PostgresCopy.Migration;
 
 public sealed class MigrationTableException(

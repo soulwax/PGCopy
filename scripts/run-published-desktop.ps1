@@ -1,3 +1,5 @@
+# File: scripts/run-published-desktop.ps1
+
 param(
     [string]$Runtime = "win-x64"
 )

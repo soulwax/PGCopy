@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/DryRunReporter.cs
+
 using Npgsql;
 using PostgresCopy.Logging;
 

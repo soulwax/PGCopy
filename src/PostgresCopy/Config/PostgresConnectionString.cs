@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Config/PostgresConnectionString.cs
+
 using System.Text;
 using Npgsql;
 

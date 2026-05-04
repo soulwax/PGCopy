@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Cli/CliParseResult.cs
+
 namespace PostgresCopy.Cli;
 
 public sealed record CliParseResult(

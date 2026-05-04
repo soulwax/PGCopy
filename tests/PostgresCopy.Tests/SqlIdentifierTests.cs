@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/SqlIdentifierTests.cs
+
 using PostgresCopy.Database;
 
 namespace PostgresCopy.Tests;

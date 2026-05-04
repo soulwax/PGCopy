@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Database/SqlIdentifier.cs
+
 namespace PostgresCopy.Database;
 
 public static class SqlIdentifier

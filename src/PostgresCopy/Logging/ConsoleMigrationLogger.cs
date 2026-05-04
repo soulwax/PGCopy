@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Logging/ConsoleMigrationLogger.cs
+
 using PostgresCopy.Migration;
 
 namespace PostgresCopy.Logging;

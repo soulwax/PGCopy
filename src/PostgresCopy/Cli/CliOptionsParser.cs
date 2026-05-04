@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Cli/CliOptionsParser.cs
+
 namespace PostgresCopy.Cli;
 
 public static class CliOptionsParser

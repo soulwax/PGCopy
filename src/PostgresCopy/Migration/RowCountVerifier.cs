@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/RowCountVerifier.cs
+
 using Npgsql;
 using PostgresCopy.Logging;
 

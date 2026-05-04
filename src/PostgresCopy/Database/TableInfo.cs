@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Database/TableInfo.cs
+
 namespace PostgresCopy.Database;
 
 public sealed record TableInfo(

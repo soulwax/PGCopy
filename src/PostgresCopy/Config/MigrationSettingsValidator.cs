@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Config/MigrationSettingsValidator.cs
+
 using PostgresCopy.Cli;
 
 namespace PostgresCopy.Config;

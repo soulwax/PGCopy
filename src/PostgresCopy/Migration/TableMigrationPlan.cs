@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/TableMigrationPlan.cs
+
 using PostgresCopy.Database;
 
 namespace PostgresCopy.Migration;

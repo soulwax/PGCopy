@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Cli/InteractiveCliPrompt.cs
+
 namespace PostgresCopy.Cli;
 
 public static class InteractiveCliPrompt

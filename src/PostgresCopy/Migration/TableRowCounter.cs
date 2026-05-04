@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/TableRowCounter.cs
+
 using Npgsql;
 using PostgresCopy.Database;
 

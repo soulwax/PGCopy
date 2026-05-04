@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Config/MigrationSettings.cs
+
 namespace PostgresCopy.Config;
 
 public sealed record MigrationSettings(

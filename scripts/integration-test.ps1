@@ -1,3 +1,5 @@
+# File: scripts/integration-test.ps1
+
 param(
     [switch]$KeepContainers
 )

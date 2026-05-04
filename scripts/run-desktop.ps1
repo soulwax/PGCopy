@@ -1,3 +1,5 @@
+# File: scripts/run-desktop.ps1
+
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")

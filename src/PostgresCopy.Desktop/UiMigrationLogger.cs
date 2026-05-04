@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/UiMigrationLogger.cs
+
 using PostgresCopy.Logging;
 using PostgresCopy.Migration;
 

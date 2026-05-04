@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/PostgresConnectionStringTests.cs
+
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
 

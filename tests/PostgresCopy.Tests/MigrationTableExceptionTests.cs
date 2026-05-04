@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/MigrationTableExceptionTests.cs
+
 using PostgresCopy.Migration;
 
 namespace PostgresCopy.Tests;

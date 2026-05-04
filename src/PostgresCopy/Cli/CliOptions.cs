@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Cli/CliOptions.cs
+
 namespace PostgresCopy.Cli;
 
 public sealed record CliOptions(

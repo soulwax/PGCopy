@@ -1,3 +1,5 @@
+# File: scripts/check.ps1
+
 param(
     [switch]$IncludeIntegration
 )

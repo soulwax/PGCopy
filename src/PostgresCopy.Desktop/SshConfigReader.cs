@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/SshConfigReader.cs
+
 namespace PostgresCopy.Desktop;
 
 public sealed record SshConfigEntry(

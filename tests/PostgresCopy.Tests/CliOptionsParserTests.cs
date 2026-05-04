@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/CliOptionsParserTests.cs
+
 using PostgresCopy.Cli;
 
 namespace PostgresCopy.Tests;

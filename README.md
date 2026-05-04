@@ -120,8 +120,10 @@ If your database is only reachable via an SSH jump host:
 
 1. Pick a host from the **~/.ssh/config** dropdown (auto-populated from `%USERPROFILE%\.ssh\config`) — or fill the fields manually.
 2. Check **Origin**, **Destination**, or both under **Tunnel for**.
-3. Choose authentication: password or private key file.
-4. Set **Remote host** to where PostgreSQL is visible *from the SSH server* (typically `localhost:5432`).
+3. Paste or confirm the origin and destination database URLs shown on the tab.
+4. Choose authentication: password or private key file.
+5. Set **Remote host** to where PostgreSQL is visible *from the SSH server* (typically `localhost:5432`).
+6. Click **Test tunnel** to open the SSH tunnel and run a tiny database read check through the selected origin/destination URL(s).
 
 The tunnel is established before the migration starts and torn down in `finally` when the run ends.
 

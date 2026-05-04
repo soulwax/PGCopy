@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/MainForm.cs
+
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
@@ -22,6 +24,8 @@ public sealed class MainForm : Form
     private readonly ComboBox sshConfigHostCombo = new();
     private readonly CheckBox sshForOriginCheckBox = new();
     private readonly CheckBox sshForDestCheckBox = new();
+    private readonly TextBox sshOriginTextBox = new();
+    private readonly TextBox sshDestinationTextBox = new();
     private readonly TextBox sshHostTextBox = new();
     private readonly TextBox sshPortTextBox = new();
     private readonly TextBox sshUserTextBox = new();
@@ -34,6 +38,7 @@ public sealed class MainForm : Form
     private readonly Panel sshKeyPanel = new();
     private readonly TextBox sshRemoteHostTextBox = new();
     private readonly TextBox sshRemotePortTextBox = new();
+    private readonly Button testSshButton = new();
 
     // Footer
     private readonly Button runButton = new();
@@ -43,6 +48,8 @@ public sealed class MainForm : Form
     private readonly Label statusLabel = new();
 
     private CancellationTokenSource? activeRun;
+    private string? runningStatusOverride;
+    private bool syncingConnectionText;
 
     public MainForm()
     {
@@ -137,6 +144,8 @@ public sealed class MainForm : Form
         destinationTextBox.Height = 58;
         destinationTextBox.ScrollBars = ScrollBars.Vertical;
         destinationTextBox.PlaceholderText = "postgres://user:password@localhost:5433/target";
+        originTextBox.TextChanged += (_, _) => SyncConnectionText(originTextBox, sshOriginTextBox);
+        destinationTextBox.TextChanged += (_, _) => SyncConnectionText(destinationTextBox, sshDestinationTextBox);
 
         schemaTextBox.Text = "public";
         schemaTextBox.PlaceholderText = "public";
@@ -208,6 +217,18 @@ public sealed class MainForm : Form
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
+        sshOriginTextBox.Multiline = true;
+        sshOriginTextBox.Height = 58;
+        sshOriginTextBox.ScrollBars = ScrollBars.Vertical;
+        sshOriginTextBox.PlaceholderText = "postgres://user:password@localhost:5432/source";
+        sshOriginTextBox.TextChanged += (_, _) => SyncConnectionText(sshOriginTextBox, originTextBox);
+
+        sshDestinationTextBox.Multiline = true;
+        sshDestinationTextBox.Height = 58;
+        sshDestinationTextBox.ScrollBars = ScrollBars.Vertical;
+        sshDestinationTextBox.PlaceholderText = "postgres://user:password@localhost:5433/target";
+        sshDestinationTextBox.TextChanged += (_, _) => SyncConnectionText(sshDestinationTextBox, destinationTextBox);
+
         // ~/.ssh/config host selector
         var sshConfigEntries = SshConfigReader.Read();
         sshConfigHostCombo.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -244,6 +265,8 @@ public sealed class MainForm : Form
         applyPanel.Controls.Add(sshForOriginCheckBox);
         applyPanel.Controls.Add(sshForDestCheckBox);
         AddRow(panel, "Tunnel for", applyPanel);
+        AddRow(panel, "Origin URL", sshOriginTextBox);
+        AddRow(panel, "Destination URL", sshDestinationTextBox);
 
         // SSH host / port
         sshPortTextBox.Text = "22";
@@ -314,9 +337,21 @@ public sealed class MainForm : Form
         remotePanel.Controls.Add(sshRemotePortTextBox);
         AddRow(panel, "Remote host", remotePanel);
 
+        testSshButton.Text = "Test tunnel";
+        testSshButton.AutoSize = true;
+        testSshButton.Click += TestSshButton_Click;
+        var testPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+        };
+        testPanel.Controls.Add(testSshButton);
+        AddRow(panel, "Connection", testPanel);
+
         var note = new Label
         {
-            Text = "Remote host/port = where PostgreSQL is visible from the SSH server (usually localhost:5432).",
+            Text = "Remote host/port = where PostgreSQL is visible from the SSH server. Test tunnel checks the selected database URL(s) through SSH.",
             AutoSize = true,
             ForeColor = SystemColors.GrayText,
             Margin = new Padding(0, 4, 0, 0),
@@ -326,6 +361,118 @@ public sealed class MainForm : Form
         panel.Controls.Add(note, 1, row);
 
         return panel;
+    }
+
+    private async void TestSshButton_Click(object? sender, EventArgs eventArgs)
+    {
+        logTextBox.Clear();
+        runningStatusOverride = "Testing SSH tunnel...";
+        activeRun = new CancellationTokenSource();
+        SetRunning(true);
+        SshTunnelConnection? tunnel = null;
+        string? finalStatus = null;
+
+        try
+        {
+            if (!SshEnabled)
+                throw new ValidationException("Select Origin, Destination, or both under Tunnel for before testing.");
+
+            var originText = sshOriginTextBox.Text.Trim();
+            var destText = sshDestinationTextBox.Text.Trim();
+
+            if (sshForOriginCheckBox.Checked && string.IsNullOrWhiteSpace(originText))
+                throw new ValidationException("Origin URL is required to test the origin tunnel.");
+            if (sshForDestCheckBox.Checked && string.IsNullOrWhiteSpace(destText))
+                throw new ValidationException("Destination URL is required to test the destination tunnel.");
+
+            var sshConfig = BuildSshConfig();
+            AppendLog($"Connecting SSH tunnel to {sshConfig.Host}:{sshConfig.Port}...");
+
+            tunnel = await SshTunnelConnection.StartAsync(sshConfig, originText, destText, activeRun.Token);
+            AppendLog("SSH tunnel established.");
+
+            if (tunnel.PatchedOrigin != null)
+            {
+                AppendLog("Checking origin database through SSH tunnel...");
+                await TestDatabaseConnectionAsync(tunnel.PatchedOrigin, activeRun.Token);
+                AppendLog("Origin database connection passed.");
+            }
+
+            if (tunnel.PatchedDest != null)
+            {
+                AppendLog("Checking destination database through SSH tunnel...");
+                await TestDatabaseConnectionAsync(tunnel.PatchedDest, activeRun.Token);
+                AppendLog("Destination database connection passed.");
+            }
+
+            finalStatus = "SSH tunnel test passed.";
+            statusLabel.Text = finalStatus;
+            AppendLog("SSH tunnel test passed.");
+        }
+        catch (ValidationException ex)
+        {
+            AppendLog($"Error: {ex.Message}");
+            finalStatus = "SSH tunnel test failed.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (PostgresException ex)
+        {
+            AppendLog($"PostgreSQL error: {ex.MessageText}");
+            finalStatus = "SSH tunnel test failed.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("SSH tunnel test cancelled.");
+            finalStatus = "Cancelled.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Error: {ex.Message}");
+            finalStatus = "SSH tunnel test failed.";
+            statusLabel.Text = finalStatus;
+        }
+        finally
+        {
+            tunnel?.Dispose();
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
+        }
+    }
+
+    private static async Task TestDatabaseConnectionAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Timeout = 10,
+            CommandTimeout = 10,
+        };
+
+        await using var connection = new NpgsqlConnection(builder.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand("select 1", connection);
+        await command.ExecuteScalarAsync(cancellationToken);
+    }
+
+    private void SyncConnectionText(TextBox source, TextBox target)
+    {
+        if (syncingConnectionText || target.Text == source.Text)
+            return;
+
+        syncingConnectionText = true;
+        try
+        {
+            target.Text = source.Text;
+        }
+        finally
+        {
+            syncingConnectionText = false;
+        }
     }
 
     private void UpdateSshAuthVisibility()
@@ -579,6 +726,8 @@ public sealed class MainForm : Form
         sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;
         sshForDestCheckBox.Enabled = !running;
+        sshOriginTextBox.Enabled = !running;
+        sshDestinationTextBox.Enabled = !running;
         sshHostTextBox.Enabled = !running;
         sshPortTextBox.Enabled = !running;
         sshUserTextBox.Enabled = !running;
@@ -589,6 +738,7 @@ public sealed class MainForm : Form
         sshKeyPassphraseTextBox.Enabled = !running;
         sshRemoteHostTextBox.Enabled = !running;
         sshRemotePortTextBox.Enabled = !running;
+        testSshButton.Enabled = !running;
 
         clearLogButton.Enabled = !running;
         runButton.Enabled = !running;
@@ -596,7 +746,8 @@ public sealed class MainForm : Form
 
         if (running)
         {
-            statusLabel.Text = dryRunCheckBox.Checked ? "Running dry run..." : "Running copy...";
+            statusLabel.Text = runningStatusOverride
+                ?? (dryRunCheckBox.Checked ? "Running dry run..." : "Running copy...");
         }
         else
         {

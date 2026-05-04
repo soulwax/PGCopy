@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/SshTunnelConnection.cs
+
 using Npgsql;
 using Renci.SshNet;
 

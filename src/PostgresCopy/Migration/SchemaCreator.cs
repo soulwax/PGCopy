@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/SchemaCreator.cs
+
 using System.Diagnostics;
 using System.Text;
 using Npgsql;

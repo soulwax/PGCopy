@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/DestinationTableCleaner.cs
+
 using Npgsql;
 using PostgresCopy.Database;
 using PostgresCopy.Logging;

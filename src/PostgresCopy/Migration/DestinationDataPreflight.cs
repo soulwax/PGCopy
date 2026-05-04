@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/DestinationDataPreflight.cs
+
 using Npgsql;
 using PostgresCopy.Config;
 using PostgresCopy.Logging;

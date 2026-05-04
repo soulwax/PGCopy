@@ -1,3 +1,5 @@
+// File: src/PostgresCopy.Desktop/LogoPanel.cs
+
 using System.Drawing.Drawing2D;
 using System.Reflection;
 

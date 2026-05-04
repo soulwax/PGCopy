@@ -1,3 +1,5 @@
+// File: tests/PostgresCopy.Tests/DestinationDataPreflightTests.cs
+
 using PostgresCopy.Config;
 using PostgresCopy.Migration;
 

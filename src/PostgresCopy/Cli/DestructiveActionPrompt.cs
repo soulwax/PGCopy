@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Cli/DestructiveActionPrompt.cs
+
 namespace PostgresCopy.Cli;
 
 public static class DestructiveActionPrompt

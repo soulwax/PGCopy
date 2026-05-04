@@ -1,3 +1,5 @@
+// File: src/PostgresCopy/Migration/OriginTableSelectionValidator.cs
+
 using PostgresCopy.Config;
 using PostgresCopy.Database;
 
