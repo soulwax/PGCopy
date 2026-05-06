@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PostgresCopy Desktop",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build desktop",
+      "program": "${workspaceFolder}/src/PostgresCopy.Desktop/bin/Debug/net10.0-windows/PostgresCopy.Desktop.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "PostgresCopy CLI: Help",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build cli",
+      "program": "${workspaceFolder}/src/PostgresCopy/bin/Debug/net10.0/PostgresCopy.dll",
+      "args": [
+        "--help"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "PostgresCopy CLI: Dry Run Sample",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build cli",
+      "program": "${workspaceFolder}/src/PostgresCopy/bin/Debug/net10.0/PostgresCopy.dll",
+      "args": [
+        "--origin",
+        "postgres://postgres:secret@localhost:5432/app",
+        "--destination",
+        "postgres://postgres:secret@localhost:5432/app",
+        "--dry-run"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal"
+    }
+  ]
+}

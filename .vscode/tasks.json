@@ -1,0 +1,114 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "restore",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "PostgresCopy.sln"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "PostgresCopy.sln"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build desktop",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "src/PostgresCopy.Desktop/PostgresCopy.Desktop.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build cli",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "src/PostgresCopy/PostgresCopy.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "tests/PostgresCopy.Tests/PostgresCopy.Tests.csproj",
+        "--no-build"
+      ],
+      "dependsOn": "build",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "check",
+      "type": "shell",
+      "command": "./scripts/check.ps1",
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "run desktop",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/PostgresCopy.Desktop/PostgresCopy.Desktop.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run cli help",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/PostgresCopy/PostgresCopy.csproj",
+        "--",
+        "--help"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "integration test",
+      "type": "shell",
+      "command": "./scripts/integration-test.ps1",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "publish desktop",
+      "type": "shell",
+      "command": "./scripts/publish-desktop.ps1",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "publish cli",
+      "type": "shell",
+      "command": "./scripts/publish-cli.ps1",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}
