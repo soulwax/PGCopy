@@ -18,7 +18,6 @@ public sealed class MainForm : Form
     private readonly CheckBox verifyCheckBox = new();
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
-    private readonly TextBox truncateConfirmationTextBox = new();
 
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
@@ -44,9 +43,13 @@ public sealed class MainForm : Form
     private readonly Button runButton = new();
     private readonly Button cancelButton = new();
     private readonly Button clearLogButton = new();
-    private readonly TextBox logTextBox = new();
+    private readonly RichTextBox logTextBox = new();
     private readonly Label statusLabel = new();
+    private readonly ToolTip helpToolTip = new();
 
+    private const int MaxLogOperations = 6;
+    private readonly List<LogOperation> logOperations = [];
+    private LogOperation? activeLogOperation;
     private CancellationTokenSource? activeRun;
     private string? runningStatusOverride;
     private bool syncingConnectionText;
@@ -56,6 +59,11 @@ public sealed class MainForm : Form
         Text = "PostgresCopy";
         MinimumSize = new Size(960, 780);
         StartPosition = FormStartPosition.CenterScreen;
+
+        helpToolTip.AutoPopDelay = 12000;
+        helpToolTip.InitialDelay = 550;
+        helpToolTip.ReshowDelay = 150;
+        helpToolTip.ShowAlways = true;
 
         BuildLayout();
         UpdateRunState();
@@ -152,16 +160,15 @@ public sealed class MainForm : Form
 
         tablesTextBox.PlaceholderText = "optional: users,orders,products";
 
-        truncateConfirmationTextBox.PlaceholderText = "Type TRUNCATE when destination truncation is checked";
-        truncateConfirmationTextBox.Enabled = false;
-        truncateConfirmationTextBox.TextChanged += (_, _) => UpdateRunState();
-
-        AddRow(panel, "Origin URL", originTextBox);
-        AddRow(panel, "Destination URL", destinationTextBox);
-        AddRow(panel, "Schema", schemaTextBox);
-        AddRow(panel, "Tables", tablesTextBox);
+        AddRow(panel, "Origin URL", originTextBox,
+            "The source PostgreSQL database. PostgresCopy reads schema and rows from here and never modifies it.");
+        AddRow(panel, "Destination URL", destinationTextBox,
+            "The target PostgreSQL database. Copy operations write here, so double-check this is not the same database as origin.");
+        AddRow(panel, "Schema", schemaTextBox,
+            "The PostgreSQL schema to copy. Most databases use public unless your tables live in a named schema.");
+        AddRow(panel, "Tables", tablesTextBox,
+            "Optional comma-separated table list. Leave empty to copy every base table in the selected schema.");
         AddRow(panel, "Options", BuildOptionsPanel());
-        AddRow(panel, "Confirm", truncateConfirmationTextBox);
 
         return panel;
     }
@@ -179,23 +186,25 @@ public sealed class MainForm : Form
         dryRunCheckBox.Checked = true;
         dryRunCheckBox.AutoSize = true;
         dryRunCheckBox.CheckedChanged += (_, _) => UpdateRunState();
+        SetHelp(dryRunCheckBox,
+            "Runs every validation and shows counts without copying or deleting rows. Start here when using a new database pair.");
 
         verifyCheckBox.Text = "Verify counts";
         verifyCheckBox.Checked = true;
         verifyCheckBox.AutoSize = true;
+        SetHelp(verifyCheckBox,
+            "After a real copy, compare row counts between origin and destination. This is a quick sanity check, not a full checksum.");
 
         truncateCheckBox.Text = "Truncate destination";
         truncateCheckBox.AutoSize = true;
-        truncateCheckBox.CheckedChanged += (_, _) =>
-        {
-            truncateConfirmationTextBox.Enabled = truncateCheckBox.Checked;
-            if (!truncateCheckBox.Checked)
-                truncateConfirmationTextBox.Clear();
-            UpdateRunState();
-        };
+        truncateCheckBox.CheckedChanged += (_, _) => UpdateRunState();
+        SetHelp(truncateCheckBox,
+            "Before a real copy, delete all rows from the planned destination tables so the destination becomes a fresh copy. Origin is not changed. You will still get a warning before anything is deleted.");
 
         createSchemaCheckBox.Text = "Create schema (requires pg_dump)";
         createSchemaCheckBox.AutoSize = true;
+        SetHelp(createSchemaCheckBox,
+            "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
 
         panel.Controls.Add(dryRunCheckBox);
         panel.Controls.Add(verifyCheckBox);
@@ -365,7 +374,7 @@ public sealed class MainForm : Form
 
     private async void TestSshButton_Click(object? sender, EventArgs eventArgs)
     {
-        logTextBox.Clear();
+        BeginLogOperation("SSH tunnel test");
         runningStatusOverride = "Testing SSH tunnel...";
         activeRun = new CancellationTokenSource();
         SetRunning(true);
@@ -411,13 +420,13 @@ public sealed class MainForm : Form
         }
         catch (ValidationException ex)
         {
-            AppendLog($"Error: {ex.Message}");
+            AppendLog(FormatValidationError(ex.Message));
             finalStatus = "SSH tunnel test failed.";
             statusLabel.Text = finalStatus;
         }
         catch (PostgresException ex)
         {
-            AppendLog($"PostgreSQL error: {ex.MessageText}");
+            AppendLog(FormatPostgresError(ex));
             finalStatus = "SSH tunnel test failed.";
             statusLabel.Text = finalStatus;
         }
@@ -429,7 +438,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppendLog($"Error: {ex.Message}");
+            AppendLog(FormatUnexpectedError(ex.Message));
             finalStatus = "SSH tunnel test failed.";
             statusLabel.Text = finalStatus;
         }
@@ -528,11 +537,15 @@ public sealed class MainForm : Form
     private Control BuildLogBox()
     {
         logTextBox.Dock = DockStyle.Fill;
-        logTextBox.Multiline = true;
         logTextBox.ReadOnly = true;
-        logTextBox.ScrollBars = ScrollBars.Vertical;
+        logTextBox.ScrollBars = RichTextBoxScrollBars.ForcedBoth;
+        logTextBox.WordWrap = false;
+        logTextBox.DetectUrls = false;
+        logTextBox.HideSelection = false;
         logTextBox.Font = new Font(FontFamily.GenericMonospace, 10);
         logTextBox.BackColor = Color.White;
+        SetHelp(logTextBox,
+            "Operations log. It keeps the latest six dry runs, copies, and SSH tests. Use the scroll bars or mouse wheel to review older lines.");
         return logTextBox;
     }
 
@@ -561,15 +574,18 @@ public sealed class MainForm : Form
 
         clearLogButton.Text = "Clear log";
         clearLogButton.AutoSize = true;
-        clearLogButton.Click += (_, _) => logTextBox.Clear();
+        clearLogButton.Click += (_, _) => ClearLogHistory();
+        SetHelp(clearLogButton, "Clear all currently visible operation history.");
 
         cancelButton.Text = "Cancel";
         cancelButton.AutoSize = true;
         cancelButton.Enabled = false;
         cancelButton.Click += (_, _) => activeRun?.Cancel();
+        SetHelp(cancelButton, "Ask the active run to stop at the next safe cancellation point.");
 
         runButton.AutoSize = true;
         runButton.Click += RunButton_Click;
+        SetHelp(runButton, "Start the current mode. Dry run previews; copy writes to the destination database.");
 
         buttons.Controls.Add(clearLogButton);
         buttons.Controls.Add(cancelButton);
@@ -584,7 +600,7 @@ public sealed class MainForm : Form
 
     private async void RunButton_Click(object? sender, EventArgs eventArgs)
     {
-        logTextBox.Clear();
+        BeginLogOperation(dryRunCheckBox.Checked ? "Dry run" : "Copy");
         SetRunning(true);
 
         activeRun = new CancellationTokenSource();
@@ -616,6 +632,13 @@ public sealed class MainForm : Form
             }
 
             var settings = BuildSettings(originText, destText);
+            if (!ConfirmTruncateIfNeeded(settings))
+            {
+                logger.Info("Copy cancelled before destination truncation.");
+                statusLabel.Text = "Copy cancelled.";
+                return;
+            }
+
             await new MigrationRunner(logger).RunAsync(
                 settings,
                 destructiveActionsConfirmed: true,
@@ -625,24 +648,29 @@ public sealed class MainForm : Form
         }
         catch (ValidationException ex)
         {
-            logger.Error(ex.Message);
+            logger.Error(FormatValidationError(ex.Message));
             statusLabel.Text = "Validation failed.";
         }
         catch (MigrationTableException ex)
         {
-            logger.Error(ex.Message);
+            logger.Error(FormatMigrationTableError(ex.Message));
             logger.Error($"Copied before failure: {ex.TablesCopiedBeforeFailure} table(s), {ex.RowsCopiedBeforeFailure} row(s).");
             statusLabel.Text = "Migration failed.";
         }
         catch (VerificationException ex)
         {
-            logger.Error(ex.Message);
+            logger.Error(FormatVerificationError(ex.Message));
             statusLabel.Text = "Verification failed.";
         }
         catch (PostgresException ex)
         {
-            logger.Error($"PostgreSQL error: {ex.MessageText}");
+            logger.Error(FormatPostgresError(ex));
             statusLabel.Text = "PostgreSQL error.";
+        }
+        catch (NpgsqlException ex)
+        {
+            logger.Error(FormatNpgsqlError(ex.Message));
+            statusLabel.Text = "Connection failed.";
         }
         catch (OperationCanceledException)
         {
@@ -651,7 +679,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            logger.Error(ex.Message);
+            logger.Error(FormatUnexpectedError(ex.Message));
             statusLabel.Text = "Failed.";
         }
         finally
@@ -665,12 +693,6 @@ public sealed class MainForm : Form
 
     private MigrationSettings BuildSettings(string? originOverride = null, string? destOverride = null)
     {
-        if (truncateCheckBox.Checked
-            && !string.Equals(truncateConfirmationTextBox.Text, "TRUNCATE", StringComparison.Ordinal))
-        {
-            throw new ValidationException("Type TRUNCATE to confirm destination truncation.");
-        }
-
         var options = new CliOptions(
             originOverride ?? originTextBox.Text.Trim(),
             destOverride ?? destinationTextBox.Text.Trim(),
@@ -685,6 +707,29 @@ public sealed class MainForm : Form
             createSchemaCheckBox.Checked);
 
         return MigrationSettingsValidator.Validate(options);
+    }
+
+    private bool ConfirmTruncateIfNeeded(MigrationSettings settings)
+    {
+        if (settings.DryRun || !settings.TruncateDestination)
+            return true;
+
+        var message =
+            "Truncate destination will delete all rows from the planned destination tables before copying." +
+            Environment.NewLine + Environment.NewLine +
+            "Origin is not changed. Destination data removed by this step cannot be restored by PostgresCopy." +
+            Environment.NewLine + Environment.NewLine +
+            "Use this only when the destination should become a fresh copy of the origin. If you are unsure, choose No and run a dry run first.";
+
+        var result = MessageBox.Show(
+            this,
+            message,
+            "Confirm destination truncation",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        return result == DialogResult.Yes;
     }
 
     private static IReadOnlyList<string> ParseTables(string tables)
@@ -708,7 +753,47 @@ public sealed class MainForm : Form
             return;
         }
 
-        logTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        var operation = activeLogOperation;
+        if (operation is null)
+        {
+            BeginLogOperation("Operation");
+            operation = activeLogOperation
+                ?? throw new InvalidOperationException("Log operation was not initialized.");
+        }
+
+        var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+        operation.Lines.Add(line);
+        logTextBox.AppendText(line + Environment.NewLine);
+        logTextBox.SelectionStart = logTextBox.TextLength;
+        logTextBox.ScrollToCaret();
+    }
+
+    private void BeginLogOperation(string title)
+    {
+        activeLogOperation = new LogOperation(title);
+        logOperations.Add(activeLogOperation);
+        while (logOperations.Count > MaxLogOperations)
+            logOperations.RemoveAt(0);
+
+        RenderLogHistory();
+        AppendLog($"--- {title} started ---");
+    }
+
+    private void ClearLogHistory()
+    {
+        logOperations.Clear();
+        activeLogOperation = null;
+        logTextBox.Clear();
+    }
+
+    private void RenderLogHistory()
+    {
+        logTextBox.Clear();
+        foreach (var operation in logOperations)
+        {
+            foreach (var line in operation.Lines)
+                logTextBox.AppendText(line + Environment.NewLine);
+        }
     }
 
     private void SetRunning(bool running)
@@ -720,7 +805,6 @@ public sealed class MainForm : Form
         dryRunCheckBox.Enabled = !running;
         verifyCheckBox.Enabled = !running;
         truncateCheckBox.Enabled = !running;
-        truncateConfirmationTextBox.Enabled = !running && truncateCheckBox.Checked;
         createSchemaCheckBox.Enabled = !running;
 
         sshConfigHostCombo.Enabled = !running;
@@ -757,19 +841,21 @@ public sealed class MainForm : Form
 
     private void UpdateRunState()
     {
-        var destructiveReady = !truncateCheckBox.Checked
-            || string.Equals(truncateConfirmationTextBox.Text, "TRUNCATE", StringComparison.Ordinal);
-
         runButton.Text = dryRunCheckBox.Checked ? "Run dry run" : "Run copy";
-        runButton.Enabled = activeRun is null && destructiveReady;
+        runButton.Enabled = activeRun is null;
 
-        if (!destructiveReady)
-            statusLabel.Text = "Type TRUNCATE to enable destination truncation.";
-        else if (activeRun is null)
-            statusLabel.Text = dryRunCheckBox.Checked ? "Ready. Start with a dry run." : "Ready to copy.";
+        if (activeRun is null)
+        {
+            if (dryRunCheckBox.Checked && truncateCheckBox.Checked)
+                statusLabel.Text = "Ready. Dry run will preview truncation without deleting data.";
+            else if (truncateCheckBox.Checked)
+                statusLabel.Text = "Ready to copy. You will confirm truncation before rows are deleted.";
+            else
+                statusLabel.Text = dryRunCheckBox.Checked ? "Ready. Start with a dry run." : "Ready to copy.";
+        }
     }
 
-    private static void AddRow(TableLayoutPanel panel, string labelText, Control control)
+    private void AddRow(TableLayoutPanel panel, string labelText, Control control, string? helpText = null)
     {
         var row = panel.RowCount++;
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -785,7 +871,76 @@ public sealed class MainForm : Form
         control.Dock = DockStyle.Fill;
         control.Margin = new Padding(0, 4, 0, 4);
 
+        if (!string.IsNullOrWhiteSpace(helpText))
+        {
+            SetHelp(label, helpText);
+            SetHelp(control, helpText);
+        }
+
         panel.Controls.Add(label, 0, row);
         panel.Controls.Add(control, 1, row);
+    }
+
+    private void SetHelp(Control control, string text)
+    {
+        helpToolTip.SetToolTip(control, text);
+    }
+
+    private static string FormatValidationError(string message)
+    {
+        return "Validation failed before copying any data." + Environment.NewLine
+            + message + Environment.NewLine
+            + "What to try: check the highlighted fields, confirm the origin and destination point to the intended databases, then run a dry run again.";
+    }
+
+    private static string FormatMigrationTableError(string message)
+    {
+        return "A table copy failed after the migration had already started." + Environment.NewLine
+            + message + Environment.NewLine
+            + "What to try: inspect the named table on both databases for constraints, triggers, permissions, or type differences, then rerun from a fresh dry run.";
+    }
+
+    private static string FormatVerificationError(string message)
+    {
+        return "The copy finished, but row-count verification did not match." + Environment.NewLine
+            + message + Environment.NewLine
+            + "What to try: do not trust the destination yet. Check for triggers, concurrent writes, failed tables above, or a destination database that was modified during the copy.";
+    }
+
+    private static string FormatPostgresError(PostgresException ex)
+    {
+        var hint = ex.SqlState switch
+        {
+            "28P01" => "Check the username and password in the connection string.",
+            "3D000" => "Check the database name in the connection string.",
+            "42501" => "The connected user does not have enough permission for this operation. Grant the needed schema/table privileges or use a role with copy rights.",
+            "42P01" => "A table PostgreSQL expected was not found. Check the schema name, table filter, and whether Create schema was run against the intended destination.",
+            "42703" => "A column PostgreSQL expected was not found. Check whether origin and destination schemas were generated from the same version.",
+            _ => "Check the database server message above, then confirm host, port, database name, SSL mode, and user permissions."
+        };
+
+        return $"PostgreSQL returned an error: {ex.MessageText}" + Environment.NewLine
+            + $"SQLSTATE: {ex.SqlState}" + Environment.NewLine
+            + $"What to try: {hint}";
+    }
+
+    private static string FormatNpgsqlError(string message)
+    {
+        return "Could not complete the PostgreSQL connection or network operation." + Environment.NewLine
+            + message + Environment.NewLine
+            + "What to try: check host, port, SSL mode, VPN/SSH tunnel status, firewall rules, and whether the database accepts direct connections from this machine.";
+    }
+
+    private static string FormatUnexpectedError(string message)
+    {
+        return "PostgresCopy hit an unexpected error before it could finish." + Environment.NewLine
+            + message + Environment.NewLine
+            + "What to try: review the last successful log step, run a dry run if possible, and share this log if the problem repeats.";
+    }
+
+    private sealed class LogOperation(string title)
+    {
+        public string Title { get; } = title;
+        public List<string> Lines { get; } = [];
     }
 }

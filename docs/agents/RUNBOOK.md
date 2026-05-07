@@ -51,7 +51,7 @@ Expected native GUI controls:
 - schema
 - tables
 - dry run
-- truncate destination with `TRUNCATE` confirmation
+- truncate destination with warning confirmation
 - verify counts
 - create schema
 - SSH tunnel configuration

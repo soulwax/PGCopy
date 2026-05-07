@@ -13,7 +13,10 @@ public static class PostgresConnectionString
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ValidationException("Connection string cannot be empty.");
+            throw new ValidationException(
+                "Connection string cannot be empty." + Environment.NewLine +
+                "What happened: one side of the copy has no PostgreSQL URL or Npgsql connection string." + Environment.NewLine +
+                "How to resolve: paste the origin database connection string into Origin URL and the separate target database connection string into Destination URL.");
         }
 
         try
@@ -24,12 +27,18 @@ public static class PostgresConnectionString
 
             if (string.IsNullOrWhiteSpace(builder.Host))
             {
-                throw new ValidationException("Connection string must include a host.");
+                throw new ValidationException(
+                    "Connection string must include a host." + Environment.NewLine +
+                    "What happened: PostgresCopy could parse the value, but it does not say which PostgreSQL server to contact." + Environment.NewLine +
+                    "How to resolve: include a host, for example postgres://user:password@host:5432/database or Host=host;Database=database;Username=user;Password=...");
             }
 
             if (string.IsNullOrWhiteSpace(builder.Database))
             {
-                throw new ValidationException("Connection string must include a database.");
+                throw new ValidationException(
+                    "Connection string must include a database." + Environment.NewLine +
+                    "What happened: PostgresCopy could parse the value, but it does not name the database on that server." + Environment.NewLine +
+                    "How to resolve: include the database path or Database= value, and make sure origin and destination names are different.");
             }
 
             var connectionString = builder.ConnectionString;
@@ -44,7 +53,10 @@ public static class PostgresConnectionString
         }
         catch (Exception ex)
         {
-            throw new ValidationException($"Invalid PostgreSQL connection string: {ex.Message}");
+            throw new ValidationException(
+                $"Invalid PostgreSQL connection string: {ex.Message}" + Environment.NewLine +
+                "What happened: the value is not a valid postgres:// URL or Npgsql connection string." + Environment.NewLine +
+                "How to resolve: check for missing semicolons, unescaped special characters in passwords, and required fields such as Host, Database, Username, Password, Port, and SSL Mode.");
         }
     }
 

@@ -62,7 +62,7 @@ Both share the same migration core, so copy behavior is kept consistent.
 - **Foreign-key-aware ordering** — parent tables copy before children.
 - **Row-count verification** with `--verify`.
 - **Sequence sync** — identity/serial sequences are realigned after copy so new inserts don't collide.
-- **Truncate gate** — destination truncation requires an explicit flag *and* a `TRUNCATE` confirmation.
+- **Truncate gate** — destination truncation requires an explicit checkbox and warning confirmation before rows are deleted.
 - **No stored credentials, no background service, no telemetry.**
 
 ## Quick Start
@@ -111,7 +111,7 @@ This is the default manual workflow. The desktop window has two tabs (**Connecti
 | **Tables** | Optional, comma-separated. Empty = all base tables in the schema. |
 | **Dry run** | On by default. Performs every check and reports counts without copying. |
 | **Verify counts** | Compares origin and destination row counts after the copy. |
-| **Truncate destination** | Empties planned destination tables before copying (requires typing `TRUNCATE` to confirm). |
+| **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
 | **Create schema (requires pg_dump)** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. |
 
 ### 2. SSH Tunnel tab *(optional)*
@@ -133,7 +133,7 @@ The tunnel is established before the migration starts and torn down in `finally`
 2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
 3. Paste both URLs.
 4. Keep **Dry run** checked. Click **Run dry run**. Read the operations log carefully.
-5. *(Replacing existing data?)* Check **Truncate destination** and type `TRUNCATE`.
+5. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
 6. Uncheck **Dry run**, keep **Verify counts** checked, click **Run copy**.
 7. Watch the log. The final line reports tables copied and rows transferred.
 
@@ -211,7 +211,7 @@ PostgresCopy refuses to act when something looks wrong:
 - **Origin = destination.** The two connection strings must normalize to different databases.
 - **Schema mismatch.** Every planned destination table must exist with matching columns in matching order. The migration aborts before any data is copied.
 - **Non-empty destination.** Append-into-existing is refused; you must explicitly opt into `--truncate-destination`.
-- **Truncate confirmation.** CLI requires `--yes` or an interactive confirmation. The GUI requires typing `TRUNCATE` literally.
+- **Truncate confirmation.** CLI requires `--yes` or an interactive confirmation. The GUI requires the truncate checkbox and a warning confirmation before the copy starts.
 - **Credentials.** Passwords are redacted in every log line. Connection strings are never written to disk.
 
 Stack traces are hidden behind `--verbose` so accidental log capture doesn't leak internals.

@@ -44,9 +44,13 @@ public sealed class DestinationDataPreflight(
             $"{rowCount.TableName}: destination has {rowCount.Rows} row(s).");
         var message = "Destination contains data. Refusing to append into non-empty tables."
             + Environment.NewLine
+            + "What happened: the origin and destination schemas are compatible, but at least one planned destination table already has rows."
+            + Environment.NewLine
+            + "Why PostgresCopy stopped: appending a full database copy into existing rows can create duplicates, foreign-key conflicts, or mixed old/new data."
+            + Environment.NewLine
             + string.Join(Environment.NewLine, lines)
             + Environment.NewLine
-            + "Use --truncate-destination with confirmation to replace destination data.";
+            + "How to resolve: on the origin side, confirm the selected tables are the tables you meant to copy. On the destination side, either choose an empty database/table set, or use Truncate destination in the desktop app / --truncate-destination with confirmation in the CLI to replace the existing rows.";
 
         throw new ValidationException(message);
     }

@@ -28,7 +28,7 @@ Reason: schema generation is a separate problem. Keeping it separate makes data 
 
 ## 2026-04-30: Destructive Actions Are Explicit
 
-Destination truncation is allowed only through `--truncate-destination` or an explicit GUI checkbox. CLI uses `--yes` or an interactive `TRUNCATE` confirmation. GUI paths require typing `TRUNCATE`.
+Destination truncation is allowed only through `--truncate-destination` or an explicit GUI checkbox. CLI uses `--yes` or an interactive `TRUNCATE` confirmation. GUI paths require explicit confirmation.
 
 Reason: productive repeated migrations need a way to empty destination tables, but destructive behavior must never be surprising.
 
@@ -109,3 +109,9 @@ Reason: the native Desktop GUI now covers every workflow the web prototype provi
 Documentation, agent guidance, and release-facing work should lead with the native Windows desktop `.exe`. The CLI remains supported for automation, smoke checks, and shared-core parity, but it should not be presented as the default manual workflow.
 
 Reason: the app now has a complete one-window GUI with connection fields, SSH tunnel configuration, schema copy, dry-run, destructive confirmation, cancel, and live operations log. That is the friendliest path for the intended no-terminal use case.
+
+## 2026-05-07: Desktop Truncate Confirmation Uses a Warning Dialog
+
+The desktop app still requires an explicit **Truncate destination** checkbox, but it no longer requires typing `TRUNCATE` into a separate field. A real copy with truncation selected shows a warning dialog explaining what will be deleted, why it matters, and that origin is not changed. The default button is non-destructive.
+
+Reason: the typed confirmation was clumsy in the one-window flow. The safety boundary remains explicit at the moment rows would be deleted, while the Connection tab stays cleaner and easier to understand.

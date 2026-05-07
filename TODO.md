@@ -31,10 +31,12 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Use the existing migration core instead of duplicating copy logic.
 - [x] Start GUI runs in dry-run mode.
 - [x] Add a cancel button for active GUI runs.
-- [x] Require typing `TRUNCATE` before destructive GUI truncation.
+- [x] Require explicit confirmation before destructive GUI truncation.
 - [x] Do not store credentials or run a background service.
 - [x] Add source and published desktop launchers.
 - [x] Add a desktop publish script.
+- [x] Keep the Connection tab log scrollable and retain the latest six operation sessions.
+- [x] Replace typed GUI truncate confirmation with a clearer warning confirmation.
 
 ## Safety
 

@@ -29,6 +29,8 @@ public sealed class DestinationPreflightValidatorTests
             new DestinationPreflightValidator().Validate(plan, []));
 
         Assert.Contains("destination table is missing", ex.Message);
+        Assert.Contains("What happened", ex.Message);
+        Assert.Contains("Destination side", ex.Message);
     }
 
     [Fact]
@@ -44,6 +46,9 @@ public sealed class DestinationPreflightValidatorTests
             new DestinationPreflightValidator().Validate(plan, destinationTables));
 
         Assert.Contains("destination columns do not match", ex.Message);
+        Assert.Contains("Origin columns", ex.Message);
+        Assert.Contains("Destination columns", ex.Message);
+        Assert.Contains("How to resolve", ex.Message);
     }
 
     [Fact]
