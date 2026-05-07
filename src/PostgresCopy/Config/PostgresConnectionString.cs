@@ -8,6 +8,7 @@ namespace PostgresCopy.Config;
 public static class PostgresConnectionString
 {
     private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
+    private const string DefaultMaintenanceDatabase = "postgres";
 
     public static DatabaseEndpoint Parse(string value)
     {
@@ -21,9 +22,7 @@ public static class PostgresConnectionString
 
         try
         {
-            var builder = IsPostgresUrl(value)
-                ? FromPostgresUrl(value)
-                : new NpgsqlConnectionStringBuilder(value);
+            var builder = ParseBuilder(value);
 
             if (string.IsNullOrWhiteSpace(builder.Host))
             {
@@ -60,7 +59,61 @@ public static class PostgresConnectionString
         }
     }
 
+    public static PostgresConnectionInfo ParseForInspection(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ValidationException(
+                "Database URL cannot be empty." + Environment.NewLine +
+                "What happened: the database peek has no PostgreSQL URL or Npgsql connection string." + Environment.NewLine +
+                "How to resolve: paste a PostgreSQL URL. Omit the database name to list databases, or include one to list tables and row counts.");
+        }
+
+        try
+        {
+            var builder = ParseBuilder(value);
+
+            if (string.IsNullOrWhiteSpace(builder.Host))
+            {
+                throw new ValidationException(
+                    "Database URL must include a host." + Environment.NewLine +
+                    "What happened: PostgresCopy could parse the value, but it does not say which PostgreSQL server to contact." + Environment.NewLine +
+                    "How to resolve: include a host, for example postgres://user:password@host:5432 or Host=host;Username=user;Password=...");
+            }
+
+            var requestedDatabase = string.IsNullOrWhiteSpace(builder.Database) ? null : builder.Database;
+            if (requestedDatabase is null)
+            {
+                builder.Database = DefaultMaintenanceDatabase;
+            }
+
+            return new PostgresConnectionInfo(
+                builder.ConnectionString,
+                Redact(builder).ConnectionString,
+                requestedDatabase,
+                requestedDatabase is not null);
+        }
+        catch (ValidationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new ValidationException(
+                $"Invalid PostgreSQL database URL: {ex.Message}" + Environment.NewLine +
+                "What happened: the value is not a valid postgres:// URL or Npgsql connection string." + Environment.NewLine +
+                "How to resolve: check for missing semicolons, unescaped special characters in passwords, and required fields such as Host, Username, Password, Port, and SSL Mode.");
+        }
+    }
+
     public static string Redact(string value) => Parse(value).RedactedConnectionString;
+
+    private static NpgsqlConnectionStringBuilder ParseBuilder(string value)
+    {
+        return IsPostgresUrl(value)
+            ? FromPostgresUrl(value)
+            : new NpgsqlConnectionStringBuilder(value);
+    }
 
     private static bool IsPostgresUrl(string value)
     {

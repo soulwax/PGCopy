@@ -99,7 +99,7 @@ Always start with `--dry-run` against a new pair of databases.
 
 ## Workflow — Desktop App
 
-This is the default manual workflow. The desktop window has two tabs (**Connection** and **SSH Tunnel**) and a live operations log at the bottom.
+This is the default manual workflow. The desktop window has three tabs (**Connection**, **Peek into Database**, and **SSH Tunnel**) and a live operations log at the bottom.
 
 ### 1. Connection tab
 
@@ -114,7 +114,16 @@ This is the default manual workflow. The desktop window has two tabs (**Connecti
 | **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
 | **Create schema (requires pg_dump)** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. |
 
-### 2. SSH Tunnel tab *(optional)*
+### 2. Peek into Database tab
+
+Use this for a quick read-only look before copying:
+
+- Paste a PostgreSQL URL without a database name, such as `postgres://user:pwd@host:5432`, to list databases visible to that user.
+- Paste a PostgreSQL URL with a database name, such as `postgres://user:pwd@host:5432/app`, to list user tables and row counts.
+
+Results are written to the operations log in the same console-style format as dry runs and copies. Passwords are redacted.
+
+### 3. SSH Tunnel tab *(optional)*
 
 If your database is only reachable via an SSH jump host:
 
@@ -127,7 +136,7 @@ If your database is only reachable via an SSH jump host:
 
 The tunnel is established before the migration starts and torn down in `finally` when the run ends.
 
-### 3. Copy checklist
+### 4. Copy checklist
 
 1. *(Empty destination?)* Check **Create schema**.
 2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.

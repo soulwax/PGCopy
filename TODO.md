@@ -37,6 +37,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add a desktop publish script.
 - [x] Keep the Connection tab log scrollable and retain the latest six operation sessions.
 - [x] Replace typed GUI truncate confirmation with a clearer warning confirmation.
+- [x] Add a read-only database peek tab for listing databases or table row counts.
 
 ## Safety
 

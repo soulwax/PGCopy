@@ -3,6 +3,7 @@
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
+using PostgresCopy.Database;
 using PostgresCopy.Migration;
 
 namespace PostgresCopy.Desktop;
@@ -18,6 +19,10 @@ public sealed class MainForm : Form
     private readonly CheckBox verifyCheckBox = new();
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
+
+    // Database Peek tab
+    private readonly TextBox peekDatabaseTextBox = new();
+    private readonly Button peekButton = new();
 
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
@@ -118,6 +123,10 @@ public sealed class MainForm : Form
         connectionTab.Controls.Add(BuildInputPanel());
         tabs.TabPages.Add(connectionTab);
 
+        var peekTab = new TabPage("Peek into Database") { Padding = new Padding(8), AutoScroll = true };
+        peekTab.Controls.Add(BuildPeekPanel());
+        tabs.TabPages.Add(peekTab);
+
         var sshTab = new TabPage("SSH Tunnel") { Padding = new Padding(8), AutoScroll = true };
         sshTab.Controls.Add(BuildSshPanel());
         tabs.TabPages.Add(sshTab);
@@ -211,6 +220,165 @@ public sealed class MainForm : Form
         panel.Controls.Add(truncateCheckBox);
         panel.Controls.Add(createSchemaCheckBox);
         return panel;
+    }
+
+    // ── Peek tab ───────────────────────────────────────────────────────────────
+
+    private Control BuildPeekPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+        };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        peekDatabaseTextBox.Multiline = true;
+        peekDatabaseTextBox.Height = 58;
+        peekDatabaseTextBox.ScrollBars = ScrollBars.Vertical;
+        peekDatabaseTextBox.PlaceholderText = "postgres://user:password@localhost:5432[/database]";
+
+        peekButton.Text = "Peek database";
+        peekButton.AutoSize = true;
+        peekButton.Click += PeekButton_Click;
+        SetHelp(peekButton,
+            "Connect to the database URL and write a database or table summary into the operations log.");
+
+        var actionPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+        };
+        actionPanel.Controls.Add(peekButton);
+
+        var note = new Label
+        {
+            Text = "Omit the database name to list databases on the server. Include a database name to list user tables and row counts.",
+            AutoSize = true,
+            ForeColor = SystemColors.GrayText,
+            Margin = new Padding(0, 4, 0, 0),
+        };
+
+        AddRow(panel, "Database URL", peekDatabaseTextBox,
+            "A PostgreSQL URL or Npgsql connection string. Without a database name, PostgresCopy lists visible databases. With a database name, it lists tables and row counts.");
+        AddRow(panel, "Action", actionPanel);
+
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.Controls.Add(note, 1, row);
+
+        return panel;
+    }
+
+    private async void PeekButton_Click(object? sender, EventArgs eventArgs)
+    {
+        BeginLogOperation("Database peek");
+        runningStatusOverride = "Peeking into database...";
+        activeRun = new CancellationTokenSource();
+        SetRunning(true);
+        string? finalStatus = null;
+
+        try
+        {
+            AppendLog("Connecting to PostgreSQL...");
+
+            var result = await new DatabasePeekInspector().PeekAsync(
+                peekDatabaseTextBox.Text.Trim(),
+                activeRun.Token);
+
+            AppendLog($"Connected: {result.RedactedConnectionString}");
+            AppendDatabasePeekResult(result);
+
+            finalStatus = "Database peek complete.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (ValidationException ex)
+        {
+            AppendLog(FormatValidationError(ex.Message));
+            finalStatus = "Validation failed.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (PostgresException ex)
+        {
+            AppendLog(FormatPostgresError(ex));
+            finalStatus = "PostgreSQL error.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (NpgsqlException ex)
+        {
+            AppendLog(FormatNpgsqlError(ex.Message));
+            finalStatus = "Connection failed.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Database peek cancelled.");
+            finalStatus = "Cancelled.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (Exception ex)
+        {
+            AppendLog(FormatUnexpectedError(ex.Message));
+            finalStatus = "Database peek failed.";
+            statusLabel.Text = finalStatus;
+        }
+        finally
+        {
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
+        }
+    }
+
+    private void AppendDatabasePeekResult(DatabasePeekResult result)
+    {
+        if (!result.HasDatabase)
+        {
+            AppendLog("No database specified. Listing visible databases.");
+            AppendLog($"Databases: {result.Databases.Count}");
+
+            if (result.Databases.Count == 0)
+            {
+                AppendLog("  (none visible to this user)");
+                return;
+            }
+
+            foreach (var database in result.Databases)
+                AppendLog($"  {database}");
+
+            return;
+        }
+
+        AppendLog($"Database: {result.DatabaseName}");
+        AppendLog($"Tables: {result.Tables.Count}");
+
+        if (result.Tables.Count == 0)
+        {
+            AppendLog("  (no user tables found)");
+            return;
+        }
+
+        var tableWidth = Math.Max(
+            "Table".Length,
+            result.Tables.Max(table => $"{table.Schema}.{table.Name}".Length));
+        var countWidth = Math.Max(
+            "Rows".Length,
+            result.Tables.Max(table => table.RowCount.ToString("N0").Length));
+
+        AppendLog($"  {"Table".PadRight(tableWidth)}  {"Rows".PadLeft(countWidth)}");
+        AppendLog($"  {new string('-', tableWidth)}  {new string('-', countWidth)}");
+
+        foreach (var table in result.Tables)
+        {
+            var tableName = $"{table.Schema}.{table.Name}";
+            AppendLog($"  {tableName.PadRight(tableWidth)}  {table.RowCount.ToString("N0").PadLeft(countWidth)}");
+        }
     }
 
     // ── SSH Tunnel tab ──────────────────────────────────────────────────────────
@@ -806,6 +974,9 @@ public sealed class MainForm : Form
         verifyCheckBox.Enabled = !running;
         truncateCheckBox.Enabled = !running;
         createSchemaCheckBox.Enabled = !running;
+
+        peekDatabaseTextBox.Enabled = !running;
+        peekButton.Enabled = !running;
 
         sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;

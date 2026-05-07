@@ -27,6 +27,27 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void ParseForInspection_accepts_url_without_database()
+    {
+        var connection = PostgresConnectionString.ParseForInspection("postgres://user:secret@localhost:5432");
+
+        Assert.False(connection.HasRequestedDatabase);
+        Assert.Null(connection.RequestedDatabase);
+        Assert.Contains("Database=postgres", connection.ConnectionString);
+        Assert.DoesNotContain("secret", connection.RedactedConnectionString);
+    }
+
+    [Fact]
+    public void ParseForInspection_preserves_requested_database()
+    {
+        var connection = PostgresConnectionString.ParseForInspection("postgres://user:secret@localhost:5432/app");
+
+        Assert.True(connection.HasRequestedDatabase);
+        Assert.Equal("app", connection.RequestedDatabase);
+        Assert.Contains("Database=app", connection.ConnectionString);
+    }
+
+    [Fact]
     public void Validate_rejects_identical_origin_and_destination()
     {
         var options = new CliOptions(

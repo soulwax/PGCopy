@@ -48,6 +48,8 @@ Expected native GUI controls:
 
 - origin database URL
 - destination database URL
+- peek database URL
+- peek database button
 - schema
 - tables
 - dry run
@@ -59,7 +61,7 @@ Expected native GUI controls:
 - cancel
 - operations log
 
-For GUI changes, verify the header/logo, origin field, destination field, run button, cancel path, SSH tab, and operations log.
+For GUI changes, verify the header/logo, origin field, destination field, peek tab, run button, cancel path, SSH tab, and operations log.
 
 ## CLI Smoke Checks
 
