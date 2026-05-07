@@ -6,7 +6,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 - [ ] Polish the desktop `.exe` as the default user path:
   - [ ] app/window icon
-  - [ ] first-run sizing and header spacing
+  - [x] first-run sizing and header spacing
   - [ ] published `.exe` smoke check notes
 - [x] Add destination preflight checks before copying:
   - [x] destination table exists

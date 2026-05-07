@@ -10,6 +10,17 @@ namespace PostgresCopy.Desktop;
 
 public sealed class MainForm : Form
 {
+    private static readonly Color WindowBackColor = Color.FromArgb(244, 247, 251);
+    private static readonly Color SurfaceBackColor = Color.FromArgb(255, 255, 255);
+    private static readonly Color BorderColor = Color.FromArgb(213, 221, 232);
+    private static readonly Color MutedTextColor = Color.FromArgb(90, 103, 121);
+    private static readonly Color PrimaryTextColor = Color.FromArgb(24, 34, 48);
+    private static readonly Color AccentColor = Color.FromArgb(32, 125, 92);
+    private static readonly Color AccentHoverColor = Color.FromArgb(25, 102, 75);
+    private static readonly Color DangerColor = Color.FromArgb(176, 52, 62);
+    private static readonly Color LogBackColor = Color.FromArgb(12, 18, 30);
+    private static readonly Color LogForeColor = Color.FromArgb(221, 231, 242);
+
     // Connection tab
     private readonly TextBox originTextBox = new();
     private readonly TextBox destinationTextBox = new();
@@ -62,7 +73,12 @@ public sealed class MainForm : Form
     public MainForm()
     {
         Text = "PostgresCopy";
-        MinimumSize = new Size(960, 780);
+        AutoScaleMode = AutoScaleMode.Font;
+        Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
+        BackColor = WindowBackColor;
+        ForeColor = PrimaryTextColor;
+        MinimumSize = new Size(1040, 820);
+        Size = new Size(1120, 860);
         StartPosition = FormStartPosition.CenterScreen;
 
         helpToolTip.AutoPopDelay = 12000;
@@ -81,53 +97,33 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 4,
-            Padding = new Padding(16),
+            Padding = new Padding(24, 20, 24, 18),
+            BackColor = WindowBackColor,
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        var titleBar = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0, 0, 0, 12),
-        };
-
-        var logo = new LogoPanel
-        {
-            Size = new Size(128, 128),
-            Margin = new Padding(0, 0, 18, 0),
-        };
-
-        var title = new Label
-        {
-            Text = "PostgresCopy",
-            AutoSize = true,
-            Font = new Font(Font.FontFamily, 18, FontStyle.Bold),
-            Margin = new Padding(0, 31, 0, 0),
-        };
-
-        titleBar.Controls.Add(logo);
-        titleBar.Controls.Add(title);
+        var titleBar = BuildHeader();
 
         var tabs = new TabControl
         {
             Dock = DockStyle.Fill,
-            MinimumSize = new Size(0, 330),
+            MinimumSize = new Size(0, 380),
+            Margin = new Padding(0, 0, 0, 12),
         };
+        StyleTabs(tabs);
 
-        var connectionTab = new TabPage("Connection") { Padding = new Padding(8), AutoScroll = true };
+        var connectionTab = CreateTabPage("Connection");
         connectionTab.Controls.Add(BuildInputPanel());
         tabs.TabPages.Add(connectionTab);
 
-        var peekTab = new TabPage("Peek into Database") { Padding = new Padding(8), AutoScroll = true };
+        var peekTab = CreateTabPage("Peek into Database");
         peekTab.Controls.Add(BuildPeekPanel());
         tabs.TabPages.Add(peekTab);
 
-        var sshTab = new TabPage("SSH Tunnel") { Padding = new Padding(8), AutoScroll = true };
+        var sshTab = CreateTabPage("SSH Tunnel");
         sshTab.Controls.Add(BuildSshPanel());
         tabs.TabPages.Add(sshTab);
 
@@ -139,35 +135,144 @@ public sealed class MainForm : Form
         Controls.Add(root);
     }
 
+    private Control BuildHeader()
+    {
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 16),
+            BackColor = WindowBackColor,
+        };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        var logo = new LogoPanel
+        {
+            Size = new Size(78, 78),
+            Margin = new Padding(0, 0, 16, 0),
+        };
+
+        var titleStack = new TableLayoutPanel
+        {
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0, 8, 0, 0),
+            BackColor = WindowBackColor,
+        };
+
+        var title = new Label
+        {
+            Text = "PostgresCopy",
+            AutoSize = true,
+            Font = new Font(Font.FontFamily, 22, FontStyle.Bold),
+            ForeColor = PrimaryTextColor,
+            Margin = new Padding(0, 0, 0, 2),
+        };
+
+        var subtitle = new Label
+        {
+            Text = "Copy, inspect, and tunnel PostgreSQL databases.",
+            AutoSize = true,
+            Font = new Font(Font.FontFamily, 10.5f, FontStyle.Regular),
+            ForeColor = MutedTextColor,
+            Margin = new Padding(1, 0, 0, 0),
+        };
+
+        titleStack.Controls.Add(title, 0, 0);
+        titleStack.Controls.Add(subtitle, 0, 1);
+
+        header.Controls.Add(logo, 0, 0);
+        header.Controls.Add(titleStack, 1, 0);
+        return header;
+    }
+
+    private static TabPage CreateTabPage(string text)
+    {
+        return new TabPage(text)
+        {
+            Padding = new Padding(14),
+            AutoScroll = true,
+            BackColor = SurfaceBackColor,
+            ForeColor = PrimaryTextColor,
+        };
+    }
+
+    private void StyleTabs(TabControl tabs)
+    {
+        tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+        tabs.Appearance = TabAppearance.FlatButtons;
+        tabs.SizeMode = TabSizeMode.Fixed;
+        tabs.ItemSize = new Size(180, 38);
+        tabs.Padding = new Point(12, 5);
+        tabs.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold);
+        tabs.DrawItem += DrawTab;
+    }
+
+    private void DrawTab(object? sender, DrawItemEventArgs eventArgs)
+    {
+        if (sender is not TabControl tabs)
+            return;
+
+        var selected = eventArgs.Index == tabs.SelectedIndex;
+        var bounds = eventArgs.Bounds;
+        var backColor = selected ? SurfaceBackColor : WindowBackColor;
+        var textColor = selected ? AccentColor : MutedTextColor;
+
+        using var backBrush = new SolidBrush(backColor);
+        using var textBrush = new SolidBrush(textColor);
+        using var borderPen = new Pen(selected ? BorderColor : WindowBackColor);
+
+        eventArgs.Graphics.FillRectangle(backBrush, bounds);
+        eventArgs.Graphics.DrawRectangle(borderPen, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height);
+
+        var text = tabs.TabPages[eventArgs.Index].Text;
+        TextRenderer.DrawText(
+            eventArgs.Graphics,
+            text,
+            tabs.Font,
+            bounds,
+            textColor,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+    }
+
     // ── Connection tab ─────────────────────────────────────────────────────────
 
     private Control BuildInputPanel()
     {
         var panel = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Fill,
             ColumnCount = 2,
             AutoSize = true,
+            BackColor = SurfaceBackColor,
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        originTextBox.Multiline = true;
-        originTextBox.Height = 58;
-        originTextBox.ScrollBars = ScrollBars.Vertical;
+        originTextBox.AutoSize = false;
+        originTextBox.Height = 34;
+        originTextBox.ScrollBars = ScrollBars.None;
         originTextBox.PlaceholderText = "postgres://user:password@localhost:5432/source";
+        StyleTextBox(originTextBox);
 
-        destinationTextBox.Multiline = true;
-        destinationTextBox.Height = 58;
-        destinationTextBox.ScrollBars = ScrollBars.Vertical;
+        destinationTextBox.AutoSize = false;
+        destinationTextBox.Height = 34;
+        destinationTextBox.ScrollBars = ScrollBars.None;
         destinationTextBox.PlaceholderText = "postgres://user:password@localhost:5433/target";
+        StyleTextBox(destinationTextBox);
         originTextBox.TextChanged += (_, _) => SyncConnectionText(originTextBox, sshOriginTextBox);
         destinationTextBox.TextChanged += (_, _) => SyncConnectionText(destinationTextBox, sshDestinationTextBox);
 
         schemaTextBox.Text = "public";
         schemaTextBox.PlaceholderText = "public";
+        StyleTextBox(schemaTextBox);
 
         tablesTextBox.PlaceholderText = "optional: users,orders,products";
+        StyleTextBox(tablesTextBox);
 
         AddRow(panel, "Origin URL", originTextBox,
             "The source PostgreSQL database. PostgresCopy reads schema and rows from here and never modifies it.");
@@ -189,11 +294,14 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             AutoSize = true,
             WrapContents = true,
+            BackColor = SurfaceBackColor,
+            Padding = new Padding(0, 2, 0, 0),
         };
 
         dryRunCheckBox.Text = "Dry run";
         dryRunCheckBox.Checked = true;
         dryRunCheckBox.AutoSize = true;
+        StyleCheckBox(dryRunCheckBox);
         dryRunCheckBox.CheckedChanged += (_, _) => UpdateRunState();
         SetHelp(dryRunCheckBox,
             "Runs every validation and shows counts without copying or deleting rows. Start here when using a new database pair.");
@@ -201,17 +309,20 @@ public sealed class MainForm : Form
         verifyCheckBox.Text = "Verify counts";
         verifyCheckBox.Checked = true;
         verifyCheckBox.AutoSize = true;
+        StyleCheckBox(verifyCheckBox);
         SetHelp(verifyCheckBox,
             "After a real copy, compare row counts between origin and destination. This is a quick sanity check, not a full checksum.");
 
         truncateCheckBox.Text = "Truncate destination";
         truncateCheckBox.AutoSize = true;
+        StyleCheckBox(truncateCheckBox);
         truncateCheckBox.CheckedChanged += (_, _) => UpdateRunState();
         SetHelp(truncateCheckBox,
             "Before a real copy, delete all rows from the planned destination tables so the destination becomes a fresh copy. Origin is not changed. You will still get a warning before anything is deleted.");
 
         createSchemaCheckBox.Text = "Create schema (requires pg_dump)";
         createSchemaCheckBox.AutoSize = true;
+        StyleCheckBox(createSchemaCheckBox);
         SetHelp(createSchemaCheckBox,
             "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
 
@@ -228,20 +339,23 @@ public sealed class MainForm : Form
     {
         var panel = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Fill,
             ColumnCount = 2,
             AutoSize = true,
+            BackColor = SurfaceBackColor,
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        peekDatabaseTextBox.Multiline = true;
-        peekDatabaseTextBox.Height = 58;
-        peekDatabaseTextBox.ScrollBars = ScrollBars.Vertical;
+        peekDatabaseTextBox.AutoSize = false;
+        peekDatabaseTextBox.Height = 34;
+        peekDatabaseTextBox.ScrollBars = ScrollBars.None;
         peekDatabaseTextBox.PlaceholderText = "postgres://user:password@localhost:5432[/database]";
+        StyleTextBox(peekDatabaseTextBox);
 
         peekButton.Text = "Peek database";
         peekButton.AutoSize = true;
+        StyleButton(peekButton, ButtonTone.Primary);
         peekButton.Click += PeekButton_Click;
         SetHelp(peekButton,
             "Connect to the database URL and write a database or table summary into the operations log.");
@@ -251,14 +365,17 @@ public sealed class MainForm : Form
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            BackColor = SurfaceBackColor,
         };
         actionPanel.Controls.Add(peekButton);
 
         var note = new Label
         {
             Text = "Omit the database name to list databases on the server. Include a database name to list user tables and row counts.",
-            AutoSize = true,
-            ForeColor = SystemColors.GrayText,
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Height = 28,
+            ForeColor = MutedTextColor,
             Margin = new Padding(0, 4, 0, 0),
         };
 
@@ -387,29 +504,33 @@ public sealed class MainForm : Form
     {
         var panel = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Fill,
             ColumnCount = 2,
             AutoSize = true,
+            BackColor = SurfaceBackColor,
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        sshOriginTextBox.Multiline = true;
-        sshOriginTextBox.Height = 58;
-        sshOriginTextBox.ScrollBars = ScrollBars.Vertical;
+        sshOriginTextBox.AutoSize = false;
+        sshOriginTextBox.Height = 34;
+        sshOriginTextBox.ScrollBars = ScrollBars.None;
         sshOriginTextBox.PlaceholderText = "postgres://user:password@localhost:5432/source";
+        StyleTextBox(sshOriginTextBox);
         sshOriginTextBox.TextChanged += (_, _) => SyncConnectionText(sshOriginTextBox, originTextBox);
 
-        sshDestinationTextBox.Multiline = true;
-        sshDestinationTextBox.Height = 58;
-        sshDestinationTextBox.ScrollBars = ScrollBars.Vertical;
+        sshDestinationTextBox.AutoSize = false;
+        sshDestinationTextBox.Height = 34;
+        sshDestinationTextBox.ScrollBars = ScrollBars.None;
         sshDestinationTextBox.PlaceholderText = "postgres://user:password@localhost:5433/target";
+        StyleTextBox(sshDestinationTextBox);
         sshDestinationTextBox.TextChanged += (_, _) => SyncConnectionText(sshDestinationTextBox, destinationTextBox);
 
         // ~/.ssh/config host selector
         var sshConfigEntries = SshConfigReader.Read();
         sshConfigHostCombo.DropDownStyle = ComboBoxStyle.DropDownList;
         sshConfigHostCombo.Width = 260;
+        StyleComboBox(sshConfigHostCombo);
         if (sshConfigEntries.Count > 0)
         {
             sshConfigHostCombo.Items.Add("(select to pre-fill)");
@@ -437,8 +558,10 @@ public sealed class MainForm : Form
         var applyPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
         sshForOriginCheckBox.Text = "Origin";
         sshForOriginCheckBox.AutoSize = true;
+        StyleCheckBox(sshForOriginCheckBox);
         sshForDestCheckBox.Text = "Destination";
         sshForDestCheckBox.AutoSize = true;
+        StyleCheckBox(sshForDestCheckBox);
         applyPanel.Controls.Add(sshForOriginCheckBox);
         applyPanel.Controls.Add(sshForDestCheckBox);
         AddRow(panel, "Tunnel for", applyPanel);
@@ -448,9 +571,11 @@ public sealed class MainForm : Form
         // SSH host / port
         sshPortTextBox.Text = "22";
         sshPortTextBox.Width = 60;
-        var hostPortPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        StyleTextBox(sshPortTextBox);
+        var hostPortPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, BackColor = SurfaceBackColor };
         sshHostTextBox.PlaceholderText = "ssh.example.com";
         sshHostTextBox.Width = 260;
+        StyleTextBox(sshHostTextBox);
         var portLabel = new Label { Text = "Port", AutoSize = true, Margin = new Padding(8, 4, 4, 0) };
         hostPortPanel.Controls.Add(sshHostTextBox);
         hostPortPanel.Controls.Add(portLabel);
@@ -459,6 +584,7 @@ public sealed class MainForm : Form
 
         // Username
         sshUserTextBox.PlaceholderText = "username";
+        StyleTextBox(sshUserTextBox);
         AddRow(panel, "Username", sshUserTextBox);
 
         // Auth type
@@ -466,6 +592,7 @@ public sealed class MainForm : Form
         sshAuthCombo.Items.AddRange(["Password", "Private key file"]);
         sshAuthCombo.SelectedIndex = 0;
         sshAuthCombo.Width = 160;
+        StyleComboBox(sshAuthCombo);
         sshAuthCombo.SelectedIndexChanged += (_, _) => UpdateSshAuthVisibility();
         AddRow(panel, "Auth", sshAuthCombo);
 
@@ -473,20 +600,25 @@ public sealed class MainForm : Form
         sshPasswordTextBox.PlaceholderText = "SSH password";
         sshPasswordTextBox.UseSystemPasswordChar = true;
         sshPasswordTextBox.Dock = DockStyle.Fill;
+        StyleTextBox(sshPasswordTextBox);
         sshPasswordPanel.Dock = DockStyle.Fill;
         sshPasswordPanel.AutoSize = true;
+        sshPasswordPanel.BackColor = SurfaceBackColor;
         sshPasswordPanel.Controls.Add(sshPasswordTextBox);
         AddRow(panel, "Password", sshPasswordPanel);
 
         // Key file panel
         sshKeyPathTextBox.PlaceholderText = "Path to private key file (.pem, .ppk, OpenSSH)";
+        StyleTextBox(sshKeyPathTextBox);
         sshKeyBrowseButton.Text = "Browse…";
         sshKeyBrowseButton.AutoSize = true;
+        StyleButton(sshKeyBrowseButton, ButtonTone.Secondary);
         sshKeyBrowseButton.Click += SshKeyBrowse_Click;
         sshKeyPassphraseTextBox.PlaceholderText = "Passphrase (optional)";
         sshKeyPassphraseTextBox.UseSystemPasswordChar = true;
+        StyleTextBox(sshKeyPassphraseTextBox);
 
-        var keyLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true };
+        var keyLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true, BackColor = SurfaceBackColor };
         keyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         keyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         sshKeyPathTextBox.Dock = DockStyle.Fill;
@@ -498,6 +630,7 @@ public sealed class MainForm : Form
 
         sshKeyPanel.Dock = DockStyle.Fill;
         sshKeyPanel.AutoSize = true;
+        sshKeyPanel.BackColor = SurfaceBackColor;
         sshKeyPanel.Controls.Add(keyLayout);
         sshKeyPanel.Visible = false;
         AddRow(panel, "Key file", sshKeyPanel);
@@ -506,7 +639,9 @@ public sealed class MainForm : Form
         sshRemoteHostTextBox.Text = "localhost";
         sshRemotePortTextBox.Text = "5432";
         sshRemotePortTextBox.Width = 60;
-        var remotePanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        StyleTextBox(sshRemoteHostTextBox);
+        StyleTextBox(sshRemotePortTextBox);
+        var remotePanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, BackColor = SurfaceBackColor };
         sshRemoteHostTextBox.Width = 200;
         var remotePortLabel = new Label { Text = "Port", AutoSize = true, Margin = new Padding(8, 4, 4, 0) };
         remotePanel.Controls.Add(sshRemoteHostTextBox);
@@ -516,12 +651,14 @@ public sealed class MainForm : Form
 
         testSshButton.Text = "Test tunnel";
         testSshButton.AutoSize = true;
+        StyleButton(testSshButton, ButtonTone.Primary);
         testSshButton.Click += TestSshButton_Click;
         var testPanel = new FlowLayoutPanel
         {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            BackColor = SurfaceBackColor,
         };
         testPanel.Controls.Add(testSshButton);
         AddRow(panel, "Connection", testPanel);
@@ -529,8 +666,10 @@ public sealed class MainForm : Form
         var note = new Label
         {
             Text = "Remote host/port = where PostgreSQL is visible from the SSH server. Test tunnel checks the selected database URL(s) through SSH.",
-            AutoSize = true,
-            ForeColor = SystemColors.GrayText,
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Height = 34,
+            ForeColor = MutedTextColor,
             Margin = new Padding(0, 4, 0, 0),
         };
         var row = panel.RowCount++;
@@ -704,17 +843,43 @@ public sealed class MainForm : Form
 
     private Control BuildLogBox()
     {
+        var logShell = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(14, 12, 14, 14),
+            Margin = new Padding(0, 0, 0, 0),
+            BackColor = LogBackColor,
+        };
+        logShell.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        logShell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var logHeader = new Label
+        {
+            Text = "Operations log",
+            AutoSize = true,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(176, 190, 208),
+            Margin = new Padding(0, 0, 0, 8),
+        };
+
         logTextBox.Dock = DockStyle.Fill;
         logTextBox.ReadOnly = true;
         logTextBox.ScrollBars = RichTextBoxScrollBars.ForcedBoth;
         logTextBox.WordWrap = false;
         logTextBox.DetectUrls = false;
         logTextBox.HideSelection = false;
-        logTextBox.Font = new Font(FontFamily.GenericMonospace, 10);
-        logTextBox.BackColor = Color.White;
+        logTextBox.BorderStyle = BorderStyle.None;
+        logTextBox.Font = new Font("Consolas", 10);
+        logTextBox.BackColor = LogBackColor;
+        logTextBox.ForeColor = LogForeColor;
         SetHelp(logTextBox,
             "Operations log. It keeps the latest six dry runs, copies, and SSH tests. Use the scroll bars or mouse wheel to review older lines.");
-        return logTextBox;
+
+        logShell.Controls.Add(logHeader, 0, 0);
+        logShell.Controls.Add(logTextBox, 0, 1);
+        return logShell;
     }
 
     private Control BuildFooter()
@@ -724,7 +889,8 @@ public sealed class MainForm : Form
             Dock = DockStyle.Bottom,
             ColumnCount = 2,
             AutoSize = true,
-            Padding = new Padding(0, 12, 0, 0),
+            Padding = new Padding(0, 14, 0, 0),
+            BackColor = WindowBackColor,
         };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -732,26 +898,32 @@ public sealed class MainForm : Form
         statusLabel.Text = "Ready. Start with a dry run.";
         statusLabel.AutoSize = true;
         statusLabel.Anchor = AnchorStyles.Left;
+        statusLabel.ForeColor = MutedTextColor;
+        statusLabel.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular);
 
         var buttons = new FlowLayoutPanel
         {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            BackColor = WindowBackColor,
         };
 
         clearLogButton.Text = "Clear log";
         clearLogButton.AutoSize = true;
+        StyleButton(clearLogButton, ButtonTone.Secondary);
         clearLogButton.Click += (_, _) => ClearLogHistory();
         SetHelp(clearLogButton, "Clear all currently visible operation history.");
 
         cancelButton.Text = "Cancel";
         cancelButton.AutoSize = true;
         cancelButton.Enabled = false;
+        StyleButton(cancelButton, ButtonTone.Danger);
         cancelButton.Click += (_, _) => activeRun?.Cancel();
         SetHelp(cancelButton, "Ask the active run to stop at the next safe cancellation point.");
 
         runButton.AutoSize = true;
+        StyleButton(runButton, ButtonTone.Primary);
         runButton.Click += RunButton_Click;
         SetHelp(runButton, "Start the current mode. Dry run previews; copy writes to the destination database.");
 
@@ -998,6 +1170,7 @@ public sealed class MainForm : Form
         clearLogButton.Enabled = !running;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
+        RefreshButtonStyles();
 
         if (running)
         {
@@ -1014,6 +1187,7 @@ public sealed class MainForm : Form
     {
         runButton.Text = dryRunCheckBox.Checked ? "Run dry run" : "Run copy";
         runButton.Enabled = activeRun is null;
+        ApplyButtonEnabledState(runButton, ButtonTone.Primary);
 
         if (activeRun is null)
         {
@@ -1026,6 +1200,98 @@ public sealed class MainForm : Form
         }
     }
 
+    private void RefreshButtonStyles()
+    {
+        ApplyButtonEnabledState(runButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(peekButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(testSshButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(sshKeyBrowseButton, ButtonTone.Secondary);
+        ApplyButtonEnabledState(clearLogButton, ButtonTone.Secondary);
+        ApplyButtonEnabledState(cancelButton, ButtonTone.Danger);
+    }
+
+    private enum ButtonTone
+    {
+        Primary,
+        Secondary,
+        Danger,
+    }
+
+    private void StyleTextBox(TextBox textBox)
+    {
+        textBox.BorderStyle = BorderStyle.None;
+        textBox.BackColor = Color.FromArgb(246, 249, 252);
+        textBox.ForeColor = PrimaryTextColor;
+        textBox.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular);
+        textBox.Margin = new Padding(0, 6, 0, 8);
+    }
+
+    private void StyleComboBox(ComboBox comboBox)
+    {
+        comboBox.FlatStyle = FlatStyle.Flat;
+        comboBox.BackColor = Color.FromArgb(250, 252, 254);
+        comboBox.ForeColor = PrimaryTextColor;
+        comboBox.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular);
+        comboBox.Margin = new Padding(0, 5, 0, 7);
+    }
+
+    private void StyleCheckBox(CheckBox checkBox)
+    {
+        checkBox.ForeColor = PrimaryTextColor;
+        checkBox.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular);
+        checkBox.Margin = new Padding(0, 3, 18, 7);
+        checkBox.FlatStyle = FlatStyle.System;
+    }
+
+    private void StyleButton(Button button, ButtonTone tone)
+    {
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 1;
+        button.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold);
+        button.MinimumSize = new Size(110, 36);
+        button.Padding = new Padding(12, 2, 12, 2);
+        button.Margin = new Padding(8, 0, 0, 0);
+        button.UseVisualStyleBackColor = false;
+        button.Cursor = Cursors.Hand;
+        ApplyButtonEnabledState(button, tone);
+    }
+
+    private static void ApplyButtonEnabledState(Button button, ButtonTone tone)
+    {
+        if (!button.Enabled)
+        {
+            button.BackColor = Color.FromArgb(229, 234, 241);
+            button.ForeColor = Color.FromArgb(134, 146, 162);
+            button.FlatAppearance.BorderColor = Color.FromArgb(215, 222, 232);
+            return;
+        }
+
+        switch (tone)
+        {
+            case ButtonTone.Primary:
+                button.BackColor = AccentColor;
+                button.ForeColor = Color.White;
+                button.FlatAppearance.BorderColor = AccentColor;
+                button.FlatAppearance.MouseOverBackColor = AccentHoverColor;
+                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(18, 82, 60);
+                break;
+            case ButtonTone.Danger:
+                button.BackColor = Color.FromArgb(255, 248, 249);
+                button.ForeColor = DangerColor;
+                button.FlatAppearance.BorderColor = Color.FromArgb(230, 184, 190);
+                button.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 239, 241);
+                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(251, 224, 228);
+                break;
+            default:
+                button.BackColor = SurfaceBackColor;
+                button.ForeColor = PrimaryTextColor;
+                button.FlatAppearance.BorderColor = BorderColor;
+                button.FlatAppearance.MouseOverBackColor = Color.FromArgb(239, 244, 249);
+                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(227, 235, 244);
+                break;
+        }
+    }
+
     private void AddRow(TableLayoutPanel panel, string labelText, Control control, string? helpText = null)
     {
         var row = panel.RowCount++;
@@ -1035,12 +1301,15 @@ public sealed class MainForm : Form
         {
             Text = labelText,
             AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 8, 12, 8),
+            Anchor = AnchorStyles.Left | AnchorStyles.Top,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(54, 65, 82),
+            Margin = new Padding(0, 10, 18, 10),
         };
 
         control.Dock = DockStyle.Fill;
-        control.Margin = new Padding(0, 4, 0, 4);
+        if (control.Margin == Padding.Empty)
+            control.Margin = new Padding(0, 5, 0, 7);
 
         if (!string.IsNullOrWhiteSpace(helpText))
         {
