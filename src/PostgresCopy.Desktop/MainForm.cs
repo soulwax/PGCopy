@@ -10,14 +10,12 @@ namespace PostgresCopy.Desktop;
 
 public sealed class MainForm : Form
 {
-    private static readonly Color WindowBackColor = Color.FromArgb(244, 247, 251);
-    private static readonly Color SurfaceBackColor = Color.FromArgb(255, 255, 255);
+    private static readonly Color WindowBackColor = SystemColors.Control;
+    private static readonly Color SurfaceBackColor = SystemColors.Window;
     private static readonly Color BorderColor = Color.FromArgb(213, 221, 232);
     private static readonly Color MutedTextColor = Color.FromArgb(90, 103, 121);
     private static readonly Color PrimaryTextColor = Color.FromArgb(24, 34, 48);
     private static readonly Color AccentColor = Color.FromArgb(32, 125, 92);
-    private static readonly Color AccentHoverColor = Color.FromArgb(25, 102, 75);
-    private static readonly Color DangerColor = Color.FromArgb(176, 52, 62);
     private static readonly Color LogBackColor = Color.FromArgb(12, 18, 30);
     private static readonly Color LogForeColor = Color.FromArgb(221, 231, 242);
 
@@ -203,40 +201,11 @@ public sealed class MainForm : Form
 
     private void StyleTabs(TabControl tabs)
     {
-        tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
-        tabs.Appearance = TabAppearance.FlatButtons;
-        tabs.SizeMode = TabSizeMode.Fixed;
-        tabs.ItemSize = new Size(180, 38);
-        tabs.Padding = new Point(12, 5);
-        tabs.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold);
-        tabs.DrawItem += DrawTab;
-    }
-
-    private void DrawTab(object? sender, DrawItemEventArgs eventArgs)
-    {
-        if (sender is not TabControl tabs)
-            return;
-
-        var selected = eventArgs.Index == tabs.SelectedIndex;
-        var bounds = eventArgs.Bounds;
-        var backColor = selected ? SurfaceBackColor : WindowBackColor;
-        var textColor = selected ? AccentColor : MutedTextColor;
-
-        using var backBrush = new SolidBrush(backColor);
-        using var textBrush = new SolidBrush(textColor);
-        using var borderPen = new Pen(selected ? BorderColor : WindowBackColor);
-
-        eventArgs.Graphics.FillRectangle(backBrush, bounds);
-        eventArgs.Graphics.DrawRectangle(borderPen, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height);
-
-        var text = tabs.TabPages[eventArgs.Index].Text;
-        TextRenderer.DrawText(
-            eventArgs.Graphics,
-            text,
-            tabs.Font,
-            bounds,
-            textColor,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        tabs.Appearance = TabAppearance.Normal;
+        tabs.DrawMode = TabDrawMode.Normal;
+        tabs.SizeMode = TabSizeMode.Normal;
+        tabs.Padding = new Point(12, 4);
+        tabs.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular);
     }
 
     // ── Connection tab ─────────────────────────────────────────────────────────
@@ -1245,51 +1214,28 @@ public sealed class MainForm : Form
 
     private void StyleButton(Button button, ButtonTone tone)
     {
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 1;
         button.Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold);
         button.MinimumSize = new Size(110, 36);
         button.Padding = new Padding(12, 2, 12, 2);
         button.Margin = new Padding(8, 0, 0, 0);
-        button.UseVisualStyleBackColor = false;
+        button.FlatStyle = FlatStyle.System;
+        button.UseVisualStyleBackColor = true;
+        button.BackColor = SystemColors.Control;
+        button.ForeColor = SystemColors.ControlText;
         button.Cursor = Cursors.Hand;
         ApplyButtonEnabledState(button, tone);
     }
 
-    private static void ApplyButtonEnabledState(Button button, ButtonTone tone)
+    private void ApplyButtonEnabledState(Button button, ButtonTone tone)
     {
-        if (!button.Enabled)
-        {
-            button.BackColor = Color.FromArgb(229, 234, 241);
-            button.ForeColor = Color.FromArgb(134, 146, 162);
-            button.FlatAppearance.BorderColor = Color.FromArgb(215, 222, 232);
-            return;
-        }
-
-        switch (tone)
-        {
-            case ButtonTone.Primary:
-                button.BackColor = AccentColor;
-                button.ForeColor = Color.White;
-                button.FlatAppearance.BorderColor = AccentColor;
-                button.FlatAppearance.MouseOverBackColor = AccentHoverColor;
-                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(18, 82, 60);
-                break;
-            case ButtonTone.Danger:
-                button.BackColor = Color.FromArgb(255, 248, 249);
-                button.ForeColor = DangerColor;
-                button.FlatAppearance.BorderColor = Color.FromArgb(230, 184, 190);
-                button.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 239, 241);
-                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(251, 224, 228);
-                break;
-            default:
-                button.BackColor = SurfaceBackColor;
-                button.ForeColor = PrimaryTextColor;
-                button.FlatAppearance.BorderColor = BorderColor;
-                button.FlatAppearance.MouseOverBackColor = Color.FromArgb(239, 244, 249);
-                button.FlatAppearance.MouseDownBackColor = Color.FromArgb(227, 235, 244);
-                break;
-        }
+        button.BackColor = SystemColors.Control;
+        button.ForeColor = button.Enabled ? SystemColors.ControlText : SystemColors.GrayText;
+        button.UseVisualStyleBackColor = true;
+        button.Font = new Font(
+            Font.FontFamily,
+            9.5f,
+            tone == ButtonTone.Primary ? FontStyle.Bold : FontStyle.Regular);
+        button.Cursor = button.Enabled ? Cursors.Hand : Cursors.Default;
     }
 
     private void AddRow(TableLayoutPanel panel, string labelText, Control control, string? helpText = null)
