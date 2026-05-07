@@ -5,6 +5,7 @@ using PostgresCopy.Cli;
 using PostgresCopy.Config;
 using PostgresCopy.Database;
 using PostgresCopy.Migration;
+using System.Runtime.InteropServices;
 
 namespace PostgresCopy.Desktop;
 
@@ -58,6 +59,8 @@ public sealed class MainForm : Form
     private readonly Button cancelButton = new();
     private readonly Button clearLogButton = new();
     private readonly RichTextBox logTextBox = new();
+    private readonly Panel logScrollTrack = new();
+    private readonly Panel logScrollThumb = new();
     private readonly Label statusLabel = new();
     private readonly ToolTip helpToolTip = new();
 
@@ -67,6 +70,14 @@ public sealed class MainForm : Form
     private CancellationTokenSource? activeRun;
     private string? runningStatusOverride;
     private bool syncingConnectionText;
+    private bool draggingLogScrollThumb;
+    private int logScrollDragStartY;
+    private int logScrollDragStartTop;
+
+    private const int EmLineScroll = 0x00B6;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
     public MainForm()
     {
@@ -148,8 +159,8 @@ public sealed class MainForm : Form
 
         var logo = new LogoPanel
         {
-            Size = new Size(78, 78),
-            Margin = new Padding(0, 0, 16, 0),
+            Size = new Size(156, 156),
+            Margin = new Padding(0, 0, 22, 0),
         };
 
         var titleStack = new TableLayoutPanel
@@ -158,7 +169,7 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            Margin = new Padding(0, 8, 0, 0),
+            Margin = new Padding(0, 43, 0, 0),
             BackColor = WindowBackColor,
         };
 
@@ -821,33 +832,77 @@ public sealed class MainForm : Form
             Margin = new Padding(0, 0, 0, 0),
             BackColor = LogBackColor,
         };
-        logShell.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        logShell.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         logShell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var logHeader = new Label
         {
             Text = "Operations log",
-            AutoSize = true,
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
             ForeColor = Color.FromArgb(176, 190, 208),
-            Margin = new Padding(0, 0, 0, 8),
+            Margin = Padding.Empty,
         };
+
+        var logBody = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = LogBackColor,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+        };
+        logBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        logBody.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8));
 
         logTextBox.Dock = DockStyle.Fill;
         logTextBox.ReadOnly = true;
-        logTextBox.ScrollBars = RichTextBoxScrollBars.ForcedBoth;
-        logTextBox.WordWrap = false;
+        logTextBox.ScrollBars = RichTextBoxScrollBars.None;
+        logTextBox.WordWrap = true;
         logTextBox.DetectUrls = false;
         logTextBox.HideSelection = false;
         logTextBox.BorderStyle = BorderStyle.None;
         logTextBox.Font = new Font("Consolas", 10);
         logTextBox.BackColor = LogBackColor;
         logTextBox.ForeColor = LogForeColor;
+        logTextBox.Margin = new Padding(0, 0, 8, 0);
+        logTextBox.VScroll += (_, _) => UpdateLogScrollThumb();
+        logTextBox.TextChanged += (_, _) => UpdateLogScrollThumb();
+        logTextBox.Resize += (_, _) => UpdateLogScrollThumb();
+        logTextBox.MouseWheel += (_, _) => BeginInvoke((Action)UpdateLogScrollThumb);
         SetHelp(logTextBox,
-            "Operations log. It keeps the latest six dry runs, copies, and SSH tests. Use the scroll bars or mouse wheel to review older lines.");
+            "Operations log. It keeps the latest six dry runs, copies, SSH tests, and database peeks. Text wraps instead of overflowing horizontally.");
+
+        logScrollTrack.Dock = DockStyle.Fill;
+        logScrollTrack.Width = 8;
+        logScrollTrack.BackColor = Color.FromArgb(19, 28, 43);
+        logScrollTrack.Margin = Padding.Empty;
+        logScrollTrack.Padding = Padding.Empty;
+        logScrollTrack.Cursor = Cursors.Hand;
+        logScrollTrack.Visible = false;
+        logScrollTrack.MouseDown += LogScrollTrack_MouseDown;
+        logScrollTrack.Resize += (_, _) => UpdateLogScrollThumb();
+
+        logScrollThumb.Width = 8;
+        logScrollThumb.Height = 32;
+        logScrollThumb.Left = 0;
+        logScrollThumb.Top = 0;
+        logScrollThumb.Visible = false;
+        logScrollThumb.BackColor = Color.FromArgb(86, 101, 124);
+        logScrollThumb.Cursor = Cursors.Hand;
+        logScrollThumb.MouseDown += LogScrollThumb_MouseDown;
+        logScrollThumb.MouseMove += LogScrollThumb_MouseMove;
+        logScrollThumb.MouseUp += LogScrollThumb_MouseUp;
+        logScrollTrack.Controls.Add(logScrollThumb);
+
+        logBody.Controls.Add(logTextBox, 0, 0);
+        logBody.Controls.Add(logScrollTrack, 1, 0);
 
         logShell.Controls.Add(logHeader, 0, 0);
-        logShell.Controls.Add(logTextBox, 0, 1);
+        logShell.Controls.Add(logBody, 0, 1);
         return logShell;
     }
 
@@ -1075,6 +1130,7 @@ public sealed class MainForm : Form
         logTextBox.AppendText(line + Environment.NewLine);
         logTextBox.SelectionStart = logTextBox.TextLength;
         logTextBox.ScrollToCaret();
+        UpdateLogScrollThumb();
     }
 
     private void BeginLogOperation(string title)
@@ -1093,6 +1149,7 @@ public sealed class MainForm : Form
         logOperations.Clear();
         activeLogOperation = null;
         logTextBox.Clear();
+        UpdateLogScrollThumb();
     }
 
     private void RenderLogHistory()
@@ -1103,6 +1160,115 @@ public sealed class MainForm : Form
             foreach (var line in operation.Lines)
                 logTextBox.AppendText(line + Environment.NewLine);
         }
+
+        UpdateLogScrollThumb();
+    }
+
+    private void LogScrollTrack_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (logScrollThumb.Bounds.Contains(e.Location))
+            return;
+
+        ScrollLogToThumbTop(e.Y - logScrollThumb.Height / 2);
+    }
+
+    private void LogScrollThumb_MouseDown(object? sender, MouseEventArgs e)
+    {
+        draggingLogScrollThumb = true;
+        logScrollDragStartY = logScrollThumb.PointToScreen(e.Location).Y;
+        logScrollDragStartTop = logScrollThumb.Top;
+        logScrollThumb.Capture = true;
+    }
+
+    private void LogScrollThumb_MouseMove(object? sender, MouseEventArgs e)
+    {
+        if (!draggingLogScrollThumb)
+            return;
+
+        var currentY = logScrollThumb.PointToScreen(e.Location).Y;
+        ScrollLogToThumbTop(logScrollDragStartTop + currentY - logScrollDragStartY);
+    }
+
+    private void LogScrollThumb_MouseUp(object? sender, MouseEventArgs e)
+    {
+        draggingLogScrollThumb = false;
+        logScrollThumb.Capture = false;
+    }
+
+    private void UpdateLogScrollThumb()
+    {
+        if (!logTextBox.IsHandleCreated || logScrollTrack.Height <= 0)
+            return;
+
+        var totalLines = GetLogVisualLineCount();
+        var visibleLines = GetLogVisibleLineCount();
+        var maxFirstLine = Math.Max(0, totalLines - visibleLines);
+
+        if (maxFirstLine == 0)
+        {
+            logScrollTrack.Visible = false;
+            logScrollThumb.Visible = false;
+            return;
+        }
+
+        var firstLine = Math.Clamp(GetLogFirstVisibleLine(), 0, maxFirstLine);
+        var trackHeight = logScrollTrack.ClientSize.Height;
+        var thumbHeight = Math.Clamp(
+            (int)Math.Round(trackHeight * (visibleLines / (double)totalLines)),
+            28,
+            trackHeight);
+        var travel = Math.Max(1, trackHeight - thumbHeight);
+        var thumbTop = (int)Math.Round(travel * (firstLine / (double)maxFirstLine));
+
+        logScrollTrack.Visible = true;
+        logScrollThumb.Visible = true;
+        logScrollThumb.SetBounds(0, Math.Clamp(thumbTop, 0, travel), logScrollTrack.Width, thumbHeight);
+    }
+
+    private void ScrollLogToThumbTop(int thumbTop)
+    {
+        var totalLines = GetLogVisualLineCount();
+        var visibleLines = GetLogVisibleLineCount();
+        var maxFirstLine = Math.Max(0, totalLines - visibleLines);
+        if (maxFirstLine == 0)
+            return;
+
+        var travel = Math.Max(1, logScrollTrack.ClientSize.Height - logScrollThumb.Height);
+        var clampedTop = Math.Clamp(thumbTop, 0, travel);
+        var targetLine = (int)Math.Round(maxFirstLine * (clampedTop / (double)travel));
+        ScrollLogToFirstVisibleLine(targetLine);
+    }
+
+    private void ScrollLogToFirstVisibleLine(int targetLine)
+    {
+        if (!logTextBox.IsHandleCreated)
+            return;
+
+        var currentLine = GetLogFirstVisibleLine();
+        var delta = targetLine - currentLine;
+        if (delta != 0)
+            SendMessage(logTextBox.Handle, EmLineScroll, IntPtr.Zero, new IntPtr(delta));
+
+        UpdateLogScrollThumb();
+    }
+
+    private int GetLogFirstVisibleLine()
+    {
+        var charIndex = logTextBox.GetCharIndexFromPosition(new Point(1, 1));
+        return logTextBox.GetLineFromCharIndex(charIndex);
+    }
+
+    private int GetLogVisualLineCount()
+    {
+        if (logTextBox.TextLength == 0)
+            return 1;
+
+        return logTextBox.GetLineFromCharIndex(logTextBox.TextLength - 1) + 1;
+    }
+
+    private int GetLogVisibleLineCount()
+    {
+        return Math.Max(1, logTextBox.ClientSize.Height / Math.Max(1, logTextBox.Font.Height));
     }
 
     private void SetRunning(bool running)

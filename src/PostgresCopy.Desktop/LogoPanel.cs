@@ -7,7 +7,7 @@ namespace PostgresCopy.Desktop;
 
 public sealed class LogoPanel : Control
 {
-    private static readonly Lazy<Image?> Logo = new(LoadEmbeddedLogo);
+    private static readonly Lazy<LogoAsset?> Logo = new(LoadEmbeddedLogo);
 
     public LogoPanel()
     {
@@ -17,31 +17,33 @@ public sealed class LogoPanel : Control
             | ControlStyles.ResizeRedraw
             | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        Size = new Size(128, 128);
+        Size = new Size(156, 156);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
 
-        var image = Logo.Value;
-        if (image is null) return;
+        var logo = Logo.Value;
+        if (logo is null) return;
 
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-        var scale = Math.Min((float)Width / image.Width, (float)Height / image.Height);
-        var w = image.Width * scale;
-        var h = image.Height * scale;
-        var x = (Width - w) / 2f;
-        var y = (Height - h) / 2f;
+        var side = Math.Min(Width, Height);
+        var padding = Math.Max(0, side * 0.02f);
+        var target = new RectangleF(
+            (Width - side) / 2f + padding,
+            (Height - side) / 2f + padding,
+            side - padding * 2,
+            side - padding * 2);
 
-        g.DrawImage(image, x, y, w, h);
+        g.DrawImage(logo.Image, target, logo.ContentBounds, GraphicsUnit.Pixel);
     }
 
-    private static Image? LoadEmbeddedLogo()
+    private static LogoAsset? LoadEmbeddedLogo()
     {
         var asm = Assembly.GetExecutingAssembly();
         var name = asm.GetManifestResourceNames()
@@ -55,6 +57,49 @@ public sealed class LogoPanel : Control
         var ms = new MemoryStream();
         stream.CopyTo(ms);
         ms.Position = 0;
-        return Image.FromStream(ms);
+        var image = Image.FromStream(ms);
+        return new LogoAsset(image, FindContentBounds(image));
     }
+
+    private static Rectangle FindContentBounds(Image image)
+    {
+        using var bitmap = new Bitmap(image);
+        var minX = bitmap.Width;
+        var minY = bitmap.Height;
+        var maxX = -1;
+        var maxY = -1;
+
+        for (var y = 0; y < bitmap.Height; y++)
+        {
+            for (var x = 0; x < bitmap.Width; x++)
+            {
+                if (bitmap.GetPixel(x, y).A <= 8)
+                    continue;
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY)
+            return new Rectangle(0, 0, image.Width, image.Height);
+
+        var content = Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
+        var side = Math.Max(content.Width, content.Height);
+        var centerX = content.Left + content.Width / 2;
+        var centerY = content.Top + content.Height / 2;
+        var left = Math.Max(0, centerX - side / 2);
+        var top = Math.Max(0, centerY - side / 2);
+
+        if (left + side > image.Width)
+            left = Math.Max(0, image.Width - side);
+        if (top + side > image.Height)
+            top = Math.Max(0, image.Height - side);
+
+        return new Rectangle(left, top, Math.Min(side, image.Width - left), Math.Min(side, image.Height - top));
+    }
+
+    private sealed record LogoAsset(Image Image, Rectangle ContentBounds);
 }
