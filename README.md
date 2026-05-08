@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/postgrescopy-main-window.png" alt="PostgresCopy desktop app main window" width="900" />
+</p>
+
 <h1 align="center">PostgresCopy</h1>
 
 <p align="center">
