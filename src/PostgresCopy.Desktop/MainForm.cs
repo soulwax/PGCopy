@@ -61,10 +61,14 @@ public sealed class MainForm : Form
     private readonly RichTextBox logTextBox = new();
     private readonly Panel logScrollTrack = new();
     private readonly Panel logScrollThumb = new();
+    private readonly Button logFontDecreaseButton = new();
+    private readonly Button logFontIncreaseButton = new();
     private readonly Label statusLabel = new();
     private readonly ToolTip helpToolTip = new();
 
     private const int MaxLogOperations = 6;
+    private const float MinLogFontSize = 8f;
+    private const float MaxLogFontSize = 16f;
     private readonly List<LogOperation> logOperations = [];
     private LogOperation? activeLogOperation;
     private CancellationTokenSource? activeRun;
@@ -73,6 +77,7 @@ public sealed class MainForm : Form
     private bool draggingLogScrollThumb;
     private int logScrollDragStartY;
     private int logScrollDragStartTop;
+    private float logFontSize = 10f;
 
     private const int EmLineScroll = 0x00B6;
 
@@ -86,7 +91,7 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
         BackColor = WindowBackColor;
         ForeColor = PrimaryTextColor;
-        MinimumSize = new Size(1040, 820);
+        MinimumSize = new Size(860, 620);
         Size = new Size(1120, 860);
         StartPosition = FormStartPosition.CenterScreen;
 
@@ -105,13 +110,12 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 3,
             Padding = new Padding(24, 20, 24, 18),
             BackColor = WindowBackColor,
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var titleBar = BuildHeader();
@@ -119,8 +123,8 @@ public sealed class MainForm : Form
         var tabs = new TabControl
         {
             Dock = DockStyle.Fill,
-            MinimumSize = new Size(0, 380),
-            Margin = new Padding(0, 0, 0, 12),
+            MinimumSize = new Size(0, 160),
+            Margin = Padding.Empty,
         };
         StyleTabs(tabs);
 
@@ -136,12 +140,54 @@ public sealed class MainForm : Form
         sshTab.Controls.Add(BuildSshPanel());
         tabs.TabPages.Add(sshTab);
 
+        var workspace = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Horizontal,
+            FixedPanel = FixedPanel.None,
+            SplitterWidth = 7,
+            Panel1MinSize = 160,
+            Panel2MinSize = 120,
+            Margin = Padding.Empty,
+            BackColor = WindowBackColor,
+        };
+        workspace.Panel1.Controls.Add(tabs);
+        workspace.Panel2.Controls.Add(BuildLogBox());
+        workspace.Resize += (_, _) => SetWorkspaceSplit(workspace);
+
         root.Controls.Add(titleBar, 0, 0);
-        root.Controls.Add(tabs, 0, 1);
-        root.Controls.Add(BuildLogBox(), 0, 2);
-        root.Controls.Add(BuildFooter(), 0, 3);
+        root.Controls.Add(workspace, 0, 1);
+        root.Controls.Add(BuildFooter(), 0, 2);
 
         Controls.Add(root);
+        Shown += (_, _) => SetWorkspaceSplit(workspace);
+    }
+
+    private static void SetWorkspaceSplit(SplitContainer workspace)
+    {
+        var available = workspace.ClientSize.Height;
+        if (available <= 0)
+            return;
+
+        if (available <= workspace.Panel1MinSize + workspace.Panel2MinSize)
+        {
+            var compactDistance = Math.Max(
+                1,
+                Math.Min(workspace.Panel1MinSize, available - workspace.Panel2MinSize));
+
+            if (compactDistance > 0 && compactDistance < available)
+                workspace.SplitterDistance = compactDistance;
+
+            return;
+        }
+
+        var desiredUpper = Math.Clamp(
+            (int)Math.Round(available * 0.54),
+            workspace.Panel1MinSize,
+            available - workspace.Panel2MinSize);
+
+        if (Math.Abs(workspace.SplitterDistance - desiredUpper) > 24)
+            workspace.SplitterDistance = desiredUpper;
     }
 
     private Control BuildHeader()
@@ -835,7 +881,19 @@ public sealed class MainForm : Form
         logShell.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         logShell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var logHeader = new Label
+        var logHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = LogBackColor,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+        };
+        logHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        logHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var logTitle = new Label
         {
             Text = "Operations log",
             AutoSize = false,
@@ -845,6 +903,28 @@ public sealed class MainForm : Form
             ForeColor = Color.FromArgb(176, 190, 208),
             Margin = Padding.Empty,
         };
+
+        var logFontButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = LogBackColor,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+        };
+
+        ConfigureLogFontButton(logFontDecreaseButton, "A-");
+        ConfigureLogFontButton(logFontIncreaseButton, "A+");
+        logFontDecreaseButton.Click += (_, _) => ChangeLogFontSize(-1f);
+        logFontIncreaseButton.Click += (_, _) => ChangeLogFontSize(1f);
+        SetHelp(logFontDecreaseButton, "Decrease operations log font size.");
+        SetHelp(logFontIncreaseButton, "Increase operations log font size.");
+        logFontButtons.Controls.Add(logFontDecreaseButton);
+        logFontButtons.Controls.Add(logFontIncreaseButton);
+
+        logHeader.Controls.Add(logTitle, 0, 0);
+        logHeader.Controls.Add(logFontButtons, 1, 0);
 
         var logBody = new TableLayoutPanel
         {
@@ -865,7 +945,7 @@ public sealed class MainForm : Form
         logTextBox.DetectUrls = false;
         logTextBox.HideSelection = false;
         logTextBox.BorderStyle = BorderStyle.None;
-        logTextBox.Font = new Font("Consolas", 10);
+        logTextBox.Font = new Font("Consolas", logFontSize);
         logTextBox.BackColor = LogBackColor;
         logTextBox.ForeColor = LogForeColor;
         logTextBox.Margin = new Padding(0, 0, 8, 0);
@@ -903,7 +983,43 @@ public sealed class MainForm : Form
 
         logShell.Controls.Add(logHeader, 0, 0);
         logShell.Controls.Add(logBody, 0, 1);
+        UpdateLogFontButtonState();
         return logShell;
+    }
+
+    private void ConfigureLogFontButton(Button button, string text)
+    {
+        button.Text = text;
+        button.AutoSize = false;
+        button.Size = new Size(34, 23);
+        button.Margin = new Padding(4, 0, 0, 0);
+        button.Padding = Padding.Empty;
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderColor = Color.FromArgb(60, 74, 96);
+        button.FlatAppearance.MouseOverBackColor = Color.FromArgb(35, 47, 66);
+        button.FlatAppearance.MouseDownBackColor = Color.FromArgb(48, 64, 88);
+        button.BackColor = Color.FromArgb(20, 29, 44);
+        button.ForeColor = LogForeColor;
+        button.Font = new Font(Font.FontFamily, 8.5f, FontStyle.Bold);
+        button.UseVisualStyleBackColor = false;
+        button.Cursor = Cursors.Hand;
+    }
+
+    private void ChangeLogFontSize(float delta)
+    {
+        logFontSize = Math.Clamp(logFontSize + delta, MinLogFontSize, MaxLogFontSize);
+        logTextBox.Font = new Font("Consolas", logFontSize);
+        UpdateLogFontButtonState();
+        UpdateLogScrollThumb();
+    }
+
+    private void UpdateLogFontButtonState()
+    {
+        logFontDecreaseButton.Enabled = logFontSize > MinLogFontSize;
+        logFontIncreaseButton.Enabled = logFontSize < MaxLogFontSize;
+        logFontDecreaseButton.Cursor = logFontDecreaseButton.Enabled ? Cursors.Hand : Cursors.Default;
+        logFontIncreaseButton.Cursor = logFontIncreaseButton.Enabled ? Cursors.Hand : Cursors.Default;
     }
 
     private Control BuildFooter()
