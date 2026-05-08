@@ -8,10 +8,6 @@
   <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="512" height="512" />
 </p>
 
-<p align="center">
-  <em>Copy a PostgreSQL database into another PostgreSQL database — safely and visibly from a small Windows desktop app.</em>
-</p>
-
 ---
 
 ## Quick Use (TL;DR)

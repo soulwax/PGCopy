@@ -5,6 +5,7 @@ using PostgresCopy.Cli;
 using PostgresCopy.Config;
 using PostgresCopy.Database;
 using PostgresCopy.Migration;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace PostgresCopy.Desktop;
@@ -19,6 +20,7 @@ public sealed class MainForm : Form
     private static readonly Color AccentColor = Color.FromArgb(32, 125, 92);
     private static readonly Color LogBackColor = Color.FromArgb(12, 18, 30);
     private static readonly Color LogForeColor = Color.FromArgb(221, 231, 242);
+    private const string RepositoryUrl = "https://github.com/soulwax/PGCopy";
 
     // Connection tab
     private readonly TextBox originTextBox = new();
@@ -214,8 +216,8 @@ public sealed class MainForm : Form
             AutoSize = true,
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0, 43, 0, 0),
+            RowCount = 3,
+            Margin = new Padding(0, 34, 0, 0),
             BackColor = WindowBackColor,
         };
 
@@ -237,12 +239,70 @@ public sealed class MainForm : Form
             Margin = new Padding(1, 0, 0, 0),
         };
 
+        var privacyNote = BuildPrivacyNote();
+
         titleStack.Controls.Add(title, 0, 0);
         titleStack.Controls.Add(subtitle, 0, 1);
+        titleStack.Controls.Add(privacyNote, 0, 2);
 
         header.Controls.Add(logo, 0, 0);
         header.Controls.Add(titleStack, 1, 0);
         return header;
+    }
+
+    private Control BuildPrivacyNote()
+    {
+        var panel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            BackColor = WindowBackColor,
+            Margin = new Padding(1, 12, 0, 0),
+            Padding = Padding.Empty,
+        };
+
+        var note = new Label
+        {
+            Text = "FOSS under GPLv3. Database URLs and passwords stay local; no uploads, telemetry, or server cross-talk.",
+            AutoSize = true,
+            ForeColor = MutedTextColor,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular),
+            Margin = new Padding(0, 2, 8, 0),
+        };
+
+        var link = new LinkLabel
+        {
+            Text = "GitHub",
+            AutoSize = true,
+            LinkColor = AccentColor,
+            ActiveLinkColor = Color.FromArgb(23, 90, 67),
+            VisitedLinkColor = AccentColor,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            Margin = new Padding(0, 2, 0, 0),
+        };
+        link.Links.Add(0, link.Text.Length, RepositoryUrl);
+        link.LinkClicked += (_, eventArgs) =>
+        {
+            if (eventArgs.Link?.LinkData is string url)
+                OpenUrl(url);
+        };
+
+        panel.Controls.Add(note);
+        panel.Controls.Add(link);
+        return panel;
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Opening the repository is a convenience; the app should keep running if Windows blocks it.
+        }
     }
 
     private static TabPage CreateTabPage(string text)
