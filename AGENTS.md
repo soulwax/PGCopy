@@ -52,7 +52,7 @@ Do not:
 - Origin and destination must not normalize to the same database.
 - Destination schema/table mismatch must fail before data copy.
 - Destructive actions require an explicit flag or UI checkbox.
-- GUI destructive actions require typing `TRUNCATE`.
+- GUI destructive actions require the truncate checkbox plus a warning confirmation dialog.
 - CLI destructive actions require `--yes` or an interactive confirmation.
 - Never silently skip a failed table.
 - Keep stack traces behind `--verbose` in CLI paths.
@@ -120,8 +120,13 @@ This requires Docker.
 Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
 - **Desktop executable polish.** Improve the published `.exe` experience: app icon, window sizing, visual affordances, and clearer first-run flow.
+- **First-run/preflight clarity.** Surface whether `pg_dump`, `psql`, Docker, and SSH config are available before a user discovers it mid-flow.
+- **Copy report export.** Let the desktop app save a redacted dry-run/copy log as a small `.txt` or `.md` audit trail.
 - **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
-- **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 - **`--schema-only` / `--data-only` CLI flags.** Add explicit flags to copy only DDL or only data without combining the two steps.
+- **Stronger verification, opt-in only.** Keep row counts as the default, but consider sampled or checksum verification when a user explicitly asks for higher confidence.
+- **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 
 Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, and `~/.ssh/config` auto-population are all done.
+
+Avoid expanding into presets that store secrets, provider-specific cloud helpers, upsert/conflict-resolution modes, background services, or a web UI. If adding convenience, prefer local-only, redacted, no-secret affordances such as remembering non-sensitive connection metadata.
