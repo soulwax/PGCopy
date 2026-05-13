@@ -8,6 +8,16 @@
   <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="512" height="512" />
 </p>
 
+<p align="center">
+  <em>Copy a PostgreSQL database into another PostgreSQL database — safely and visibly from a small Windows desktop app.</em>
+</p>
+
+<p align="center">
+  <strong>FOSS under GPLv3.</strong> Database URLs and passwords stay local; no uploads, telemetry, or server cross-talk.
+  <br />
+  <a href="https://github.com/soulwax/PGCopy">GitHub repository</a>
+</p>
+
 ---
 
 ## Quick Use (TL;DR)
