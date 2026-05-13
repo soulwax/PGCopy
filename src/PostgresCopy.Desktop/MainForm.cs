@@ -273,7 +273,7 @@ public sealed class MainForm : Form
 
         var note = new Label
         {
-            Text = "This software is free and open source. It runs entirely on your machine, and does not collect or transmit any data. Please see the source code on GitHub for details.",
+            Text = "This software is proudly free and open source. See: ",
             AutoSize = true,
             ForeColor = MutedTextColor,
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular),
