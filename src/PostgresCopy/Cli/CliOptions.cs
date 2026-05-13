@@ -13,4 +13,6 @@ public sealed record CliOptions(
     bool Verbose,
     bool Yes,
     int BatchSize,
-    bool CreateSchema);
+    bool CreateSchema,
+    bool SchemaOnly,
+    bool DataOnly);

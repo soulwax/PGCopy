@@ -14,6 +14,13 @@ Read these files before making design or behavior changes:
 - `docs/agents/DECISIONS.md` for decisions already made.
 - `docs/agents/RUNBOOK.md` for verification commands and environment notes.
 
+## AI File Map
+
+- `AGENTS.md` is the main Codex/agent instruction file.
+- `AGENT.md` is the quick self-check for short handoffs.
+- `CLAUDE.md` is the Claude Code quick-start. It may be ignored by a user-level gitignore, but keep it aligned when editing agent guidance locally.
+- `docs/agents/*` contains shared long-lived context that should outlast any one assistant.
+
 ## Current Shape
 
 - `src/PostgresCopy.Desktop` is the main product surface: the native one-window C# GUI and publishable Windows `.exe`.
@@ -119,14 +126,11 @@ This requires Docker.
 
 Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
-- **Desktop executable polish.** Improve the published `.exe` experience: app icon, window sizing, visual affordances, and clearer first-run flow.
-- **First-run/preflight clarity.** Surface whether `pg_dump`, `psql`, Docker, and SSH config are available before a user discovers it mid-flow.
-- **Copy report export.** Let the desktop app save a redacted dry-run/copy log as a small `.txt` or `.md` audit trail.
-- **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` works but requires manual steps. A `--check` flag or cleaner feedback would reduce friction.
-- **`--schema-only` / `--data-only` CLI flags.** Add explicit flags to copy only DDL or only data without combining the two steps.
+- **Desktop executable polish.** Continue with published `.exe` smoke check notes and visual affordances.
+- **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` has a `-Check` mode; keep improving feedback when it reduces friction.
 - **Stronger verification, opt-in only.** Keep row counts as the default, but consider sampled or checksum verification when a user explicitly asks for higher confidence.
 - **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 
-Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, and `~/.ssh/config` auto-population are all done.
+Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, `~/.ssh/config` auto-population, desktop preflight checks, desktop log export, and `--schema-only` / `--data-only` are all done.
 
 Avoid expanding into presets that store secrets, provider-specific cloud helpers, upsert/conflict-resolution modes, background services, or a web UI. If adding convenience, prefer local-only, redacted, no-secret affordances such as remembering non-sensitive connection metadata.

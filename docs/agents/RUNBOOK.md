@@ -48,6 +48,7 @@ Expected native GUI controls:
 
 - origin database URL
 - destination database URL
+- preflight check button
 - peek database URL
 - peek database button
 - schema
@@ -59,9 +60,10 @@ Expected native GUI controls:
 - SSH tunnel configuration
 - run copy
 - cancel
+- save log
 - operations log
 
-For GUI changes, verify the header/logo, origin field, destination field, peek tab, run button, cancel path, SSH tab, and operations log.
+For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, run button, cancel path, SSH tab, save-log path, and operations log.
 
 ## CLI Smoke Checks
 
@@ -80,6 +82,12 @@ Requires Docker.
 
 ```powershell
 .\scripts\integration-test.ps1
+```
+
+Check local prerequisites without starting containers:
+
+```powershell
+.\scripts\integration-test.ps1 -Check
 ```
 
 Keep containers for inspection:

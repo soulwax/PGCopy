@@ -36,6 +36,9 @@ public sealed class MainForm : Form
     private readonly TextBox peekDatabaseTextBox = new();
     private readonly Button peekButton = new();
 
+    // Preflight tab
+    private readonly Button preflightButton = new();
+
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
     private readonly CheckBox sshForOriginCheckBox = new();
@@ -60,6 +63,7 @@ public sealed class MainForm : Form
     private readonly Button runButton = new();
     private readonly Button cancelButton = new();
     private readonly Button clearLogButton = new();
+    private readonly Button saveLogButton = new();
     private readonly RichTextBox logTextBox = new();
     private readonly Panel logScrollTrack = new();
     private readonly Panel logScrollThumb = new();
@@ -89,6 +93,7 @@ public sealed class MainForm : Form
     public MainForm()
     {
         Text = "PostgresCopy";
+        UseExecutableIcon();
         AutoScaleMode = AutoScaleMode.Font;
         Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
         BackColor = WindowBackColor;
@@ -133,6 +138,10 @@ public sealed class MainForm : Form
         var connectionTab = CreateTabPage("Connection");
         connectionTab.Controls.Add(BuildInputPanel());
         tabs.TabPages.Add(connectionTab);
+
+        var preflightTab = CreateTabPage("Preflight");
+        preflightTab.Controls.Add(BuildPreflightPanel());
+        tabs.TabPages.Add(preflightTab);
 
         var peekTab = CreateTabPage("Peek into Database");
         peekTab.Controls.Add(BuildPeekPanel());
@@ -264,7 +273,7 @@ public sealed class MainForm : Form
 
         var note = new Label
         {
-            Text = "FOSS under GPLv3. Database URLs and passwords stay local; no uploads, telemetry, or server cross-talk.",
+            Text = "This software is free and open source. It runs entirely on your machine, and does not collect or transmit any data. Please see the source code on GitHub for details.",
             AutoSize = true,
             ForeColor = MutedTextColor,
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular),
@@ -302,6 +311,20 @@ public sealed class MainForm : Form
         catch
         {
             // Opening the repository is a convenience; the app should keep running if Windows blocks it.
+        }
+    }
+
+    private void UseExecutableIcon()
+    {
+        try
+        {
+            var icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            if (icon is not null)
+                Icon = icon;
+        }
+        catch
+        {
+            // The app icon is polish only; keep the form usable if Windows cannot extract it.
         }
     }
 
@@ -581,6 +604,99 @@ public sealed class MainForm : Form
         {
             var tableName = $"{table.Schema}.{table.Name}";
             AppendLog($"  {tableName.PadRight(tableWidth)}  {table.RowCount.ToString("N0").PadLeft(countWidth)}");
+        }
+    }
+
+    // ── Preflight tab ──────────────────────────────────────────────────────────
+
+    private Control BuildPreflightPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            AutoSize = true,
+            BackColor = SurfaceBackColor,
+        };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        preflightButton.Text = "Check environment";
+        preflightButton.AutoSize = true;
+        StyleButton(preflightButton, ButtonTone.Primary);
+        preflightButton.Click += PreflightButton_Click;
+        SetHelp(preflightButton,
+            "Check local tools used by optional workflows: pg_dump, psql, Docker, and SSH config auto-population.");
+
+        var actionPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = SurfaceBackColor,
+        };
+        actionPanel.Controls.Add(preflightButton);
+
+        var note = new Label
+        {
+            Text = "Preflight does not connect to your databases. It only checks local tools and configuration that can affect schema copy, integration tests, or SSH convenience.",
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Height = 42,
+            ForeColor = MutedTextColor,
+            Margin = new Padding(0, 4, 0, 0),
+        };
+
+        AddRow(panel, "Environment", actionPanel);
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.Controls.Add(note, 1, row);
+
+        return panel;
+    }
+
+    private async void PreflightButton_Click(object? sender, EventArgs eventArgs)
+    {
+        BeginLogOperation("Environment preflight");
+        runningStatusOverride = "Checking local environment...";
+        activeRun = new CancellationTokenSource();
+        SetRunning(true);
+        string? finalStatus = null;
+
+        try
+        {
+            AppendLog("Checking local tools and optional configuration...");
+            var results = await EnvironmentPreflightChecker.CheckAsync(activeRun.Token);
+            foreach (var result in results)
+            {
+                AppendLog($"{(result.Passed ? "[ok]" : "[warn]")} {result.Name}: {result.Detail}");
+            }
+
+            finalStatus = results.All(result => result.Passed)
+                ? "Preflight passed."
+                : "Preflight complete with warnings.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Environment preflight cancelled.");
+            finalStatus = "Cancelled.";
+            statusLabel.Text = finalStatus;
+        }
+        catch (Exception ex)
+        {
+            AppendLog(FormatUnexpectedError(ex.Message));
+            finalStatus = "Preflight failed.";
+            statusLabel.Text = finalStatus;
+        }
+        finally
+        {
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
         }
     }
 
@@ -1115,6 +1231,12 @@ public sealed class MainForm : Form
         clearLogButton.Click += (_, _) => ClearLogHistory();
         SetHelp(clearLogButton, "Clear all currently visible operation history.");
 
+        saveLogButton.Text = "Save log";
+        saveLogButton.AutoSize = true;
+        StyleButton(saveLogButton, ButtonTone.Secondary);
+        saveLogButton.Click += SaveLogButton_Click;
+        SetHelp(saveLogButton, "Save the visible redacted operations log to a text file.");
+
         cancelButton.Text = "Cancel";
         cancelButton.AutoSize = true;
         cancelButton.Enabled = false;
@@ -1128,6 +1250,7 @@ public sealed class MainForm : Form
         SetHelp(runButton, "Start the current mode. Dry run previews; copy writes to the destination database.");
 
         buttons.Controls.Add(clearLogButton);
+        buttons.Controls.Add(saveLogButton);
         buttons.Controls.Add(cancelButton);
         buttons.Controls.Add(runButton);
 
@@ -1244,7 +1367,9 @@ public sealed class MainForm : Form
             false,
             true,
             CliOptionsParser.DefaultBatchSize,
-            createSchemaCheckBox.Checked);
+            createSchemaCheckBox.Checked,
+            false,
+            false);
 
         return MigrationSettingsValidator.Validate(options);
     }
@@ -1326,6 +1451,48 @@ public sealed class MainForm : Form
         activeLogOperation = null;
         logTextBox.Clear();
         UpdateLogScrollThumb();
+    }
+
+    private void SaveLogButton_Click(object? sender, EventArgs eventArgs)
+    {
+        if (string.IsNullOrWhiteSpace(logTextBox.Text))
+        {
+            MessageBox.Show(
+                this,
+                "There is no operations log to save yet.",
+                "Save log",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Save operations log",
+            FileName = $"PostgresCopy-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            Filter = "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            DefaultExt = "txt",
+            AddExtension = true,
+            OverwritePrompt = true,
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        try
+        {
+            File.WriteAllText(dialog.FileName, logTextBox.Text);
+            statusLabel.Text = "Operations log saved.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Could not save the operations log.{Environment.NewLine}{ex.Message}",
+                "Save log failed",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
     }
 
     private void RenderLogHistory()
@@ -1460,6 +1627,7 @@ public sealed class MainForm : Form
 
         peekDatabaseTextBox.Enabled = !running;
         peekButton.Enabled = !running;
+        preflightButton.Enabled = !running;
 
         sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;
@@ -1479,6 +1647,7 @@ public sealed class MainForm : Form
         testSshButton.Enabled = !running;
 
         clearLogButton.Enabled = !running;
+        saveLogButton.Enabled = !running;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
         RefreshButtonStyles();
@@ -1515,9 +1684,11 @@ public sealed class MainForm : Form
     {
         ApplyButtonEnabledState(runButton, ButtonTone.Primary);
         ApplyButtonEnabledState(peekButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(preflightButton, ButtonTone.Primary);
         ApplyButtonEnabledState(testSshButton, ButtonTone.Primary);
         ApplyButtonEnabledState(sshKeyBrowseButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(clearLogButton, ButtonTone.Secondary);
+        ApplyButtonEnabledState(saveLogButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(cancelButton, ButtonTone.Danger);
     }
 

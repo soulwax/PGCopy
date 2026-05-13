@@ -1,19 +1,19 @@
-<p align="center">
-  <img src="docs/assets/postgrescopy-main-window.png" alt="PostgresCopy desktop app main window" width="900" />
-</p>
 
-<h1 align="center">PostgresCopy</h1>
-
+# PostgresCopy
 <p align="center">
   <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="512" height="512" />
 </p>
 
+KISSS (Keep it simple, stupid, and safe) database copier. Copy database A to B. No surprises, no stored credentials, no telemetry, no background service. Just a single-window desktop app and a CLI automation companion that do one thing — copy Postgres databases — and do it well.
+
+---
+
 <p align="center">
-  <em>Copy a PostgreSQL database into another PostgreSQL database — safely and visibly from a small Windows desktop app.</em>
+  <img src="docs/assets/pgcopy.png" alt="PostgresCopy desktop app main window" width="900" />
 </p>
 
 <p align="center">
-  <strong>FOSS under GPLv3.</strong> Database URLs and passwords stay local; no uploads, telemetry, or server cross-talk.
+  <strong>This software is proudly Free and Open Source; as in Freedom, not free beer.</strong><br />
   <br />
   <a href="https://github.com/soulwax/PGCopy">GitHub repository</a>
 </p>
@@ -109,7 +109,7 @@ Always start with `--dry-run` against a new pair of databases.
 
 ## Workflow — Desktop App
 
-This is the default manual workflow. The desktop window has three tabs (**Connection**, **Peek into Database**, and **SSH Tunnel**) and a live operations log at the bottom.
+This is the default manual workflow. The desktop window has four tabs (**Connection**, **Preflight**, **Peek into Database**, and **SSH Tunnel**) and a live operations log at the bottom.
 
 ### 1. Connection tab
 
@@ -124,7 +124,17 @@ This is the default manual workflow. The desktop window has three tabs (**Connec
 | **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
 | **Create schema (requires pg_dump)** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. |
 
-### 2. Peek into Database tab
+### 2. Preflight tab
+
+Use **Check environment** before a first copy or release smoke check. It writes local readiness checks to the operations log:
+
+- `pg_dump` and `psql` availability for schema-copy workflows.
+- Docker CLI and daemon availability for the integration script.
+- `%USERPROFILE%\.ssh\config` host detection for SSH auto-population.
+
+Preflight does not connect to your databases and does not store credentials.
+
+### 3. Peek into Database tab
 
 Use this for a quick read-only look before copying:
 
@@ -133,7 +143,7 @@ Use this for a quick read-only look before copying:
 
 Results are written to the operations log in the same console-style format as dry runs and copies. Passwords are redacted.
 
-### 3. SSH Tunnel tab *(optional)*
+### 4. SSH Tunnel tab *(optional)*
 
 If your database is only reachable via an SSH jump host:
 
@@ -146,7 +156,7 @@ If your database is only reachable via an SSH jump host:
 
 The tunnel is established before the migration starts and torn down in `finally` when the run ends.
 
-### 4. Copy checklist
+### 5. Copy checklist
 
 1. *(Empty destination?)* Check **Create schema**.
 2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
@@ -156,7 +166,7 @@ The tunnel is established before the migration starts and torn down in `finally`
 6. Uncheck **Dry run**, keep **Verify counts** checked, click **Run copy**.
 7. Watch the log. The final line reports tables copied and rows transferred.
 
-The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`.
+The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.
 
 ## Workflow — CLI Automation
 
@@ -180,6 +190,8 @@ dotnet run --project src/PostgresCopy -- \
 | `--table <name>` | Copy a single table. May be passed multiple times. |
 | `--tables <csv>` | Copy comma-separated tables. |
 | `--create-schema` | Run `pg_dump --schema-only` from origin into destination first. |
+| `--schema-only` | Run the schema copy and stop before copying table data. |
+| `--data-only` | Copy table data only. Destination schema must already match. |
 | `--dry-run` | Print the plan, validate, report counts — but copy nothing. |
 | `--truncate-destination` | Empty destination tables before copying. |
 | `--yes` | Skip the interactive `TRUNCATE` confirmation (for scripts). |
@@ -292,6 +304,7 @@ dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj
 The integration script spins up two PostgreSQL containers, seeds the origin, runs PostgresCopy, and compares row counts.
 
 ```powershell
+.\scripts\integration-test.ps1 -Check          # verify Docker/.NET prerequisites only
 .\scripts\integration-test.ps1
 .\scripts\integration-test.ps1 -KeepContainers  # leave the containers running for inspection
 ```
@@ -323,7 +336,7 @@ Convenience launchers for the published builds:
 
 ## Known Limits
 
-- Destination schema is either copied via `--create-schema`/`pg_dump` *or* must already exist.
+- Destination schema is either copied via `--create-schema`, `--schema-only`, or `pg_dump` *or* must already exist for `--data-only`.
 - Copies are bulk table-data transfers, not upserts or conflict resolution.
 - FK ordering covers discoverable in-schema dependencies only.
 - `pg_dump` cannot use Neon pooled connection strings (`*.pooler.neon.tech`) — use a direct connection for `--create-schema`.

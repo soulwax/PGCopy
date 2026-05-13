@@ -22,6 +22,8 @@ public static class CliOptionsParser
           --create-schema         Copy schema DDL from origin to destination via pg_dump
                                   before copying data. Requires pg_dump and psql on PATH.
                                   Use a direct (non-pooled) connection string for this step.
+          --schema-only           Copy schema DDL only, then stop before copying table data.
+          --data-only             Copy table data only. Destination schema must already match.
           --dry-run               Print the plan without copying data.
           --truncate-destination  Empty planned destination tables before copying.
           --verify                Compare origin and destination row counts after copying.
@@ -48,6 +50,8 @@ public static class CliOptionsParser
         var yes = false;
         var batchSize = DefaultBatchSize;
         var createSchema = false;
+        var schemaOnly = false;
+        var dataOnly = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -114,6 +118,12 @@ public static class CliOptionsParser
                 case "--create-schema":
                     createSchema = true;
                     break;
+                case "--schema-only":
+                    schemaOnly = true;
+                    break;
+                case "--data-only":
+                    dataOnly = true;
+                    break;
                 case "--dry-run":
                     dryRun = true;
                     break;
@@ -129,9 +139,6 @@ public static class CliOptionsParser
                 case "--yes":
                     yes = true;
                     break;
-                case "--data-only":
-                case "--schema-only":
-                    return CliParseResult.Failed($"{arg} is not implemented in the MVP yet.");
                 case "--drop-and-recreate":
                     return CliParseResult.Failed($"{arg} is destructive and is not implemented yet.");
                 default:
@@ -154,6 +161,31 @@ public static class CliOptionsParser
             return CliParseResult.Failed("--schema cannot be empty.");
         }
 
+        if (schemaOnly && dataOnly)
+        {
+            return CliParseResult.Failed("--schema-only and --data-only cannot be used together.");
+        }
+
+        if (schemaOnly && dryRun)
+        {
+            return CliParseResult.Failed("--schema-only cannot be combined with --dry-run because applying DDL changes the destination.");
+        }
+
+        if (schemaOnly && truncateDestination)
+        {
+            return CliParseResult.Failed("--schema-only cannot be combined with --truncate-destination because no table data is copied.");
+        }
+
+        if (schemaOnly && verify)
+        {
+            return CliParseResult.Failed("--schema-only cannot be combined with --verify because no table data is copied.");
+        }
+
+        if (dataOnly && createSchema)
+        {
+            return CliParseResult.Failed("--data-only cannot be combined with --create-schema.");
+        }
+
         return CliParseResult.Parsed(new CliOptions(
             origin,
             destination,
@@ -165,7 +197,9 @@ public static class CliOptionsParser
             verbose,
             yes,
             batchSize,
-            createSchema));
+            createSchema || schemaOnly,
+            schemaOnly,
+            dataOnly));
     }
 
     private static bool TryReadValue(

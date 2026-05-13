@@ -5,9 +5,10 @@ Keep PostgresCopy small: one tool, one job, clear output.
 ## Next
 
 - [ ] Polish the desktop `.exe` as the default user path:
-  - [ ] app/window icon
+  - [x] app/window icon
   - [x] first-run sizing and header spacing
   - [ ] published `.exe` smoke check notes
+  - [x] local preflight tab for pg_dump, psql, Docker, and SSH config readiness
 - [x] Add destination preflight checks before copying:
   - [x] destination table exists
   - [x] destination columns match origin columns
@@ -38,6 +39,8 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Keep the Connection tab log scrollable and retain the latest six operation sessions.
 - [x] Replace typed GUI truncate confirmation with a clearer warning confirmation.
 - [x] Add a read-only database peek tab for listing databases or table row counts.
+- [x] Add a local preflight tab for optional tooling checks.
+- [x] Add operations log export from the desktop app.
 
 ## Safety
 
@@ -54,6 +57,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Report elapsed time and rows copied per table.
 - [x] Keep schema copying separate from data copying.
 - [x] Add `--create-schema` to copy schema from origin via pg_dump before data transfer.
+- [x] Add `--schema-only` and `--data-only` CLI flags.
 
 ## SSH Tunnel
 
@@ -63,7 +67,6 @@ Keep PostgresCopy small: one tool, one job, clear output.
 ## Later
 
 - Consider CLI progress polish only when it improves automation or matches desktop log clarity.
-- Add `--schema-only` and `--data-only` once the basic copy path is solid.
 - [x] Add publish scripts for single-file builds.
 
 ## Not Planned

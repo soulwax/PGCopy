@@ -39,6 +39,8 @@ public static class MigrationSettingsValidator
             options.Verbose,
             options.Yes,
             options.BatchSize,
-            options.CreateSchema);
+            options.CreateSchema,
+            options.SchemaOnly,
+            options.DataOnly);
     }
 }

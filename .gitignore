@@ -48,6 +48,7 @@ CodeCoverage/
 # Repo agent instructions should be tracked even if globally ignored.
 !AGENT.md
 !AGENTS.md
+!CLAUDE.md
 
 # MSBuild Binary and Structured Log
 *.binlog

@@ -1,7 +1,8 @@
 # File: scripts/integration-test.ps1
 
 param(
-    [switch]$KeepContainers
+    [switch]$KeepContainers,
+    [switch]$Check
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +11,65 @@ $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $composeFile = Join-Path $root "tests/integration/docker-compose.yml"
 $originUrl = "postgres://postgres:test@localhost:55432/pgcopy"
 $destinationUrl = "postgres://postgres:test@localhost:55433/pgcopy"
+
+function Test-IntegrationPrerequisites {
+    $ok = $true
+
+    Write-Host "Checking integration test prerequisites..."
+
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if ($null -eq $docker) {
+        Write-Warning "Docker CLI was not found on PATH."
+        $ok = $false
+    }
+    else {
+        Write-Host "Docker CLI: $($docker.Source)"
+        $dockerVersion = docker --version
+        $dockerVersion | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Docker CLI did not report a version."
+            $ok = $false
+        }
+
+        $composeVersion = docker compose version
+        $composeVersion | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "'docker compose' is not available."
+            $ok = $false
+        }
+
+        $daemonVersion = docker info --format "{{.ServerVersion}}"
+        $daemonVersion | ForEach-Object { Write-Host "Docker daemon: $($_)" }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Docker daemon is not reachable. Start Docker Desktop or a compatible Docker runtime."
+            $ok = $false
+        }
+    }
+
+    $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
+    if ($null -eq $dotnet) {
+        Write-Warning ".NET SDK was not found on PATH."
+        $ok = $false
+    }
+    else {
+        Write-Host ".NET CLI: $($dotnet.Source)"
+        $dotnetVersion = dotnet --version
+        $dotnetVersion | ForEach-Object { Write-Host ".NET SDK: $($_)" }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning ".NET CLI did not report a version."
+            $ok = $false
+        }
+    }
+
+    if ($ok) {
+        Write-Host "Integration prerequisites look ready."
+    }
+    else {
+        Write-Warning "Integration prerequisites are incomplete."
+    }
+
+    return $ok
+}
 
 function Wait-ForPostgres {
     param(
@@ -43,6 +103,16 @@ order by 1;
 
 Push-Location $root
 try {
+    if ($Check) {
+        $ok = Test-IntegrationPrerequisites
+        if (-not $ok) {
+            Write-Host "Integration prerequisites are incomplete." -ForegroundColor Red
+            exit 1
+        }
+
+        return
+    }
+
     docker compose -f $composeFile down --volumes --remove-orphans
     docker compose -f $composeFile up -d
 
@@ -68,7 +138,7 @@ try {
     Write-Host ($destinationCounts -join "`n")
 }
 finally {
-    if (-not $KeepContainers) {
+    if (-not $Check -and -not $KeepContainers) {
         docker compose -f $composeFile down --volumes --remove-orphans
     }
 

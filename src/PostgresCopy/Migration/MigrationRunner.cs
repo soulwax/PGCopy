@@ -18,6 +18,11 @@ public sealed class MigrationRunner(IMigrationLogger logger)
         logger.Info($"Origin:      {settings.Origin.RedactedConnectionString}");
         logger.Info($"Destination: {settings.Destination.RedactedConnectionString}");
 
+        if (settings.DataOnly)
+        {
+            logger.Info("Data-only mode: destination schema must already exist and match origin.");
+        }
+
         if (settings.CreateSchema)
         {
             logger.Step("Creating destination schema");
@@ -34,6 +39,12 @@ public sealed class MigrationRunner(IMigrationLogger logger)
                 return new MigrationRunResult(false, 0, 0);
             }
             logger.Success("Schema applied to destination.");
+
+            if (settings.SchemaOnly)
+            {
+                logger.Success("Schema-only run complete. No table data was copied.");
+                return new MigrationRunResult(false, 0, 0);
+            }
         }
 
         await using var origin = new NpgsqlConnection(settings.Origin.ConnectionString);

@@ -29,7 +29,7 @@ public static class SchemaCreator
         return await RunPsqlAsync(destUrl, schemaSql, cancellationToken);
     }
 
-    private static string? CheckToolAvailable(string tool)
+    public static string? CheckToolAvailable(string tool)
     {
         try
         {
