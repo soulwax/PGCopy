@@ -42,6 +42,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add a read-only database peek tab for listing databases or table row counts.
 - [x] Add a local preflight tab for optional tooling checks.
 - [x] Add operations log export from the desktop app.
+- [x] Add severity coloring to the desktop operations log.
 
 ## Safety
 
@@ -50,6 +51,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Print a final summary when a migration fails partway through.
 - [x] Refuse to append into non-empty destination tables without truncation.
 - [x] Keep raw connection strings and passwords out of logs.
+- [x] Make invalid PostgreSQL URL errors more specific.
 
 ## Copy Behavior
 

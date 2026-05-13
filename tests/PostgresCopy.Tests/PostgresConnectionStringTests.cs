@@ -48,6 +48,35 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void Parse_rejects_unsupported_url_scheme_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("https://localhost:5432/app"));
+
+        Assert.Contains("Unsupported URL scheme 'https'", ex.Message);
+        Assert.Contains("postgres://", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_rejects_postgres_url_without_database_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres://user:secret@localhost:5432"));
+
+        Assert.Contains("missing a database name", ex.Message);
+        Assert.Contains("my_database", ex.Message);
+    }
+
+    [Fact]
+    public void ParseForInspection_allows_postgres_url_without_database()
+    {
+        var connection = PostgresConnectionString.ParseForInspection("postgres://user:secret@localhost:5432");
+
+        Assert.False(connection.HasRequestedDatabase);
+        Assert.Equal("postgres", new Npgsql.NpgsqlConnectionStringBuilder(connection.ConnectionString).Database);
+    }
+
+    [Fact]
     public void Validate_rejects_identical_origin_and_destination()
     {
         var options = new CliOptions(

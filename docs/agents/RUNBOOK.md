@@ -77,6 +77,7 @@ Expected native GUI controls:
 - operations log
 
 For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, run button, cancel path, SSH tab, save-log path, and operations log.
+The operations log uses colored whole-line severity for errors, warnings, steps, and successes; saved logs remain plain text.
 
 ## CLI Smoke Checks
 

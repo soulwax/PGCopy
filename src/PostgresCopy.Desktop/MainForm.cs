@@ -20,6 +20,11 @@ public sealed class MainForm : Form
     private static readonly Color AccentColor = Color.FromArgb(32, 125, 92);
     private static readonly Color LogBackColor = Color.FromArgb(12, 18, 30);
     private static readonly Color LogForeColor = Color.FromArgb(221, 231, 242);
+    private static readonly Color LogMutedColor = Color.FromArgb(143, 158, 181);
+    private static readonly Color LogStepColor = Color.FromArgb(125, 211, 252);
+    private static readonly Color LogSuccessColor = Color.FromArgb(134, 239, 172);
+    private static readonly Color LogWarningColor = Color.FromArgb(251, 191, 36);
+    private static readonly Color LogErrorColor = Color.FromArgb(252, 129, 129);
     private const string RepositoryUrl = "https://github.com/soulwax/PGCopy";
 
     // Connection tab
@@ -1428,10 +1433,19 @@ public sealed class MainForm : Form
 
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
         operation.Lines.Add(line);
-        logTextBox.AppendText(line + Environment.NewLine);
-        logTextBox.SelectionStart = logTextBox.TextLength;
+        AppendLogLineToTextBox(line);
         logTextBox.ScrollToCaret();
         UpdateLogScrollThumb();
+    }
+
+    private void AppendLogLineToTextBox(string line)
+    {
+        logTextBox.SelectionStart = logTextBox.TextLength;
+        logTextBox.SelectionLength = 0;
+        logTextBox.SelectionColor = GetLogLineColor(line);
+        logTextBox.AppendText(line + Environment.NewLine);
+        logTextBox.SelectionColor = LogForeColor;
+        logTextBox.SelectionStart = logTextBox.TextLength;
     }
 
     private void BeginLogOperation(string title)
@@ -1501,10 +1515,71 @@ public sealed class MainForm : Form
         foreach (var operation in logOperations)
         {
             foreach (var line in operation.Lines)
-                logTextBox.AppendText(line + Environment.NewLine);
+                AppendLogLineToTextBox(line);
         }
 
         UpdateLogScrollThumb();
+    }
+
+    private static Color GetLogLineColor(string line)
+    {
+        var message = StripTimestamp(line).TrimStart();
+
+        if (message.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase)
+            || message.Contains(" failed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Validation failed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("PostgreSQL returned an error", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Could not complete", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogErrorColor;
+        }
+
+        if (message.StartsWith("[warn]", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("warning", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Truncate destination", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("will be truncated", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogWarningColor;
+        }
+
+        if (message.StartsWith("OK", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("[ok]", StringComparison.OrdinalIgnoreCase)
+            || message.Contains(" passed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains(" complete", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogSuccessColor;
+        }
+
+        if (message.StartsWith("==", StringComparison.Ordinal)
+            || message.StartsWith("---", StringComparison.Ordinal)
+            || message.StartsWith("Plan:", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogStepColor;
+        }
+
+        if (message.StartsWith("What happened:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("How to resolve:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("What to try:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("SQLSTATE:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogMutedColor;
+        }
+
+        return LogForeColor;
+    }
+
+    private static string StripTimestamp(string line)
+    {
+        return line.Length > 11
+            && line[0] == '['
+            && line[3] == ':'
+            && line[6] == ':'
+            && line[9] == ']'
+            && line[10] == ' '
+            ? line[11..]
+            : line;
     }
 
     private void LogScrollTrack_MouseDown(object? sender, MouseEventArgs e)

@@ -130,6 +130,6 @@ Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 - **Stronger verification, opt-in only.** Keep row counts as the default, but consider sampled or checksum verification when a user explicitly asks for higher confidence.
 - **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 
-Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, `~/.ssh/config` auto-population, desktop preflight checks, desktop log export, published desktop smoke checks, elapsed completion summaries, and `--schema-only` / `--data-only` are all done.
+Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, `~/.ssh/config` auto-population, desktop preflight checks, desktop log export, desktop log severity coloring, URL diagnostics, published desktop smoke checks, elapsed completion summaries, and `--schema-only` / `--data-only` are all done.
 
 Avoid expanding into presets that store secrets, provider-specific cloud helpers, upsert/conflict-resolution modes, background services, or a web UI. If adding convenience, prefer local-only, redacted, no-secret affordances such as remembering non-sensitive connection metadata.
