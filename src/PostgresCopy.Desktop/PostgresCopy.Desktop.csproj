@@ -12,7 +12,7 @@
     <Product>PostgresCopy Desktop</Product>
     <Description>Native desktop interface for PostgresCopy.</Description>
     <Authors>PostgresCopy contributors</Authors>
-    <ApplicationIcon>Assets\kitsunedb.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

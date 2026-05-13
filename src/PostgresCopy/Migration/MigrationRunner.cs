@@ -4,6 +4,7 @@ using Npgsql;
 using PostgresCopy.Config;
 using PostgresCopy.Database;
 using PostgresCopy.Logging;
+using System.Diagnostics;
 
 namespace PostgresCopy.Migration;
 
@@ -14,6 +15,8 @@ public sealed class MigrationRunner(IMigrationLogger logger)
         bool destructiveActionsConfirmed,
         CancellationToken cancellationToken)
     {
+        var totalElapsed = Stopwatch.StartNew();
+
         logger.Step("Validating connections");
         logger.Info($"Origin:      {settings.Origin.RedactedConnectionString}");
         logger.Info($"Destination: {settings.Destination.RedactedConnectionString}");
@@ -42,7 +45,7 @@ public sealed class MigrationRunner(IMigrationLogger logger)
 
             if (settings.SchemaOnly)
             {
-                logger.Success("Schema-only run complete. No table data was copied.");
+                logger.Success($"Schema-only run complete in {FormatElapsed(totalElapsed.Elapsed)}. No table data was copied.");
                 return new MigrationRunResult(false, 0, 0);
             }
         }
@@ -83,7 +86,7 @@ public sealed class MigrationRunner(IMigrationLogger logger)
         if (settings.DryRun)
         {
             await new DryRunReporter(origin, destination, logger).ReportAsync(plan, cancellationToken);
-            logger.Success("Dry run complete. No data was copied.");
+            logger.Success($"Dry run complete in {FormatElapsed(totalElapsed.Elapsed)}. No data was copied.");
             return new MigrationRunResult(true, 0, 0);
         }
 
@@ -107,7 +110,17 @@ public sealed class MigrationRunner(IMigrationLogger logger)
             await new RowCountVerifier(origin, destination, logger).VerifyAsync(plan, cancellationToken);
         }
 
-        logger.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s).");
+        logger.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s) in {FormatElapsed(totalElapsed.Elapsed)}.");
         return new MigrationRunResult(false, result.TablesCopied, result.RowsCopied);
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed)
+    {
+        if (elapsed.TotalMinutes >= 1)
+        {
+            return $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds}s";
+        }
+
+        return $"{elapsed.TotalSeconds:0.0}s";
     }
 }

@@ -38,6 +38,19 @@ Publish the self-contained `.exe`:
 .\scripts\publish-desktop.ps1
 ```
 
+Publish and run metadata/icon smoke checks:
+
+```powershell
+.\scripts\publish-desktop.ps1 -SmokeCheck
+.\scripts\smoke-published-desktop.ps1
+```
+
+Launch the published app for visual verification:
+
+```powershell
+.\scripts\smoke-published-desktop.ps1 -Launch
+```
+
 Run the published `.exe`:
 
 ```powershell

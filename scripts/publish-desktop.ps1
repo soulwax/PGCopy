@@ -2,7 +2,8 @@
 
 param(
     [string]$Runtime = "win-x64",
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [switch]$SmokeCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,10 @@ try {
     }
 
     Write-Host "Desktop app published to $output"
+
+    if ($SmokeCheck) {
+        & (Join-Path $root "scripts/smoke-published-desktop.ps1") -Runtime $Runtime
+    }
 }
 finally {
     Pop-Location

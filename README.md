@@ -164,7 +164,7 @@ The tunnel is established before the migration starts and torn down in `finally`
 4. Keep **Dry run** checked. Click **Run dry run**. Read the operations log carefully.
 5. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
 6. Uncheck **Dry run**, keep **Verify counts** checked, click **Run copy**.
-7. Watch the log. The final line reports tables copied and rows transferred.
+7. Watch the log. The final line reports tables copied, rows transferred, and elapsed time.
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.
 
@@ -318,6 +318,19 @@ The desktop app and CLI can be published as single-file, self-contained Windows 
 ```powershell
 .\scripts\publish-desktop.ps1
 .\scripts\publish-cli.ps1
+```
+
+Run a non-interactive smoke check after publishing the desktop `.exe`:
+
+```powershell
+.\scripts\publish-desktop.ps1 -SmokeCheck
+.\scripts\smoke-published-desktop.ps1
+```
+
+For a visual smoke check, launch the published app and verify the header/logo, app icon, Connection tab, Preflight tab, Peek tab, SSH tab, Save log button, and operations log:
+
+```powershell
+.\scripts\smoke-published-desktop.ps1 -Launch
 ```
 
 Output lands under `artifacts/`:

@@ -58,11 +58,12 @@ dotnet build PostgresCopy.sln && dotnet test tests\PostgresCopy.Tests\PostgresCo
 
 PostgresCopy is close to complete; prefer polish and confidence work over new scope.
 
-- Continue desktop `.exe` polish with published smoke-check notes and small visual affordances.
+- Continue desktop `.exe` polish only when it improves the published-app path beyond the existing icon and smoke-check scripts.
 - Keep the Preflight tab focused on local readiness checks only; it should not connect to user databases.
 - Keep `--schema-only` / `--data-only` behavior explicit and separate from destructive data operations.
 - Keep desktop copy-report export redacted by relying on the existing operations log.
 - Improve Docker integration diagnostics beyond the current `-Check` mode only when it reduces real setup friction.
+- Keep elapsed completion summaries in shared migration code so CLI and desktop logs stay aligned.
 - Consider stronger verification only as an explicit opt-in; row counts should remain the default.
 
 Avoid stored credentials, ORM/provider abstractions, non-PostgreSQL engines, background services, hosted dashboards, localhost web UI revival, and cloud-specific branches.
