@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Text;
 using Npgsql;
+using PostgresCopy.Config;
 
 namespace PostgresCopy.Migration;
 
@@ -44,7 +45,7 @@ public static class SchemaCreator
             using var p = Process.Start(psi)!;
             if (!p.WaitForExit(3000))
             {
-                p.Kill();
+                try { p.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return $"'{tool}' timed out during version check. Ensure it is on PATH and responsive.";
             }
             return null;
@@ -95,6 +96,9 @@ public static class SchemaCreator
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        psi.ArgumentList.Add("-v");
+        psi.ArgumentList.Add("ON_ERROR_STOP=1");
+        psi.ArgumentList.Add("--single-transaction");
         psi.ArgumentList.Add("-d");
         psi.ArgumentList.Add(destUrl);
 
@@ -128,15 +132,24 @@ public static class SchemaCreator
 
         if (process.ExitCode != 0)
         {
-            return $"psql failed (exit {process.ExitCode}): {stderr.Trim()}";
+            return $"Schema apply rolled back. No DDL was committed to the destination. psql failed (exit {process.ExitCode}): {stderr.Trim()}";
         }
 
         return null;
     }
 
-    private static string BuildPgUrl(string npgsqlConnectionString)
+    internal static string BuildPgUrl(string npgsqlConnectionString)
     {
         var b = new NpgsqlConnectionStringBuilder(npgsqlConnectionString);
+
+        if (string.IsNullOrWhiteSpace(b.Database))
+        {
+            throw new ValidationException(
+                "Connection string is missing a database name." + Environment.NewLine +
+                "What happened: schema copy needs a specific source or target database, but the connection string has no Database= value." + Environment.NewLine +
+                "How to resolve: include the database in the URL (postgres://user:pwd@host:5432/my_database) or add Database=my_database to the connection string.");
+        }
+
         var sb = new StringBuilder("postgresql://");
 
         if (!string.IsNullOrEmpty(b.Username))
@@ -149,7 +162,7 @@ public static class SchemaCreator
 
         sb.Append(b.Host ?? "localhost");
         sb.Append(':').Append(b.Port > 0 ? b.Port : 5432);
-        sb.Append('/').Append(Uri.EscapeDataString(b.Database ?? string.Empty));
+        sb.Append('/').Append(Uri.EscapeDataString(b.Database));
 
         var sslMode = MapSslMode(b.SslMode);
         if (sslMode != null)

@@ -31,6 +31,7 @@ public sealed class MigrationRunner(IMigrationLogger logger)
             logger.Step("Creating destination schema");
             logger.Info("Running pg_dump --schema-only and applying to destination.");
             logger.Info("Note: use a direct (non-pooled) connection string if pg_dump fails to connect.");
+            logger.Info("Note: schema is applied atomically; any DDL error rolls back the destination.");
             var schemaError = await SchemaCreator.CreateAsync(
                 settings.Origin.ConnectionString,
                 settings.Destination.ConnectionString,

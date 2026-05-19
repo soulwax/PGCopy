@@ -1580,9 +1580,7 @@ public sealed class MainForm : Form
             || message.StartsWith("Databases:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Tables:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Schema:", StringComparison.OrdinalIgnoreCase)
-            || message.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase)
-            || message.StartsWith("  -", StringComparison.Ordinal)
-            || message.StartsWith("  ", StringComparison.Ordinal))
+            || message.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase))
         {
             return LogDataColor;
         }

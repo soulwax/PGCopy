@@ -38,13 +38,6 @@ public static class PostgresConnectionString
         {
             throw BuildUriFormatValidationException("PostgreSQL URL", ex, value);
         }
-        catch (ArgumentException ex)
-        {
-            throw BuildConnectionValidationException(
-                $"Invalid PostgreSQL connection string: {ex.Message}",
-                "The value is not a valid postgres:// URL or Npgsql connection string.",
-                BuildUrlTroubleshootingHint(value));
-        }
         catch (Exception ex)
         {
             throw BuildConnectionValidationException(
@@ -95,13 +88,6 @@ public static class PostgresConnectionString
         catch (UriFormatException ex)
         {
             throw BuildUriFormatValidationException("PostgreSQL database URL", ex, value);
-        }
-        catch (ArgumentException ex)
-        {
-            throw BuildConnectionValidationException(
-                $"Invalid PostgreSQL database URL: {ex.Message}",
-                "The value is not a valid postgres:// URL or Npgsql connection string.",
-                BuildUrlTroubleshootingHint(value));
         }
         catch (Exception ex)
         {
