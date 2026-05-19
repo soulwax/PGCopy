@@ -108,6 +108,25 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void Parse_rejects_sslmode_typo_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres://user:secret@localhost:5432/app?sslmode=required"));
+
+        Assert.Contains("invalid value for 'sslmode'", ex.Message);
+        Assert.Contains("'required' is a common typo for 'require'", ex.Message);
+        Assert.Contains("disable, allow, prefer, require, verify-ca, verify-full", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_accepts_valid_sslmode_require()
+    {
+        var endpoint = PostgresConnectionString.Parse("postgres://user:secret@localhost:5432/app?sslmode=require");
+
+        Assert.Contains("SSL Mode=Require", endpoint.ConnectionString);
+    }
+
+    [Fact]
     public void Parse_accepts_percent_encoded_special_characters_in_url_password()
     {
         var endpoint = PostgresConnectionString.Parse("postgres://user:sec%40ret%23x@localhost:5432/app");

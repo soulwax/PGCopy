@@ -104,35 +104,37 @@ public static class SchemaCreator
 
         using var process = Process.Start(psi)!;
 
+        // Swallow broken-pipe IOExceptions on the write side. They mean psql died early
+        // (bad credentials, unreachable host, SSL failure) and closed stdin before we
+        // finished sending DDL. The real diagnostic is in psql's stderr, which we read below.
         var writeTask = Task.Run(async () =>
         {
-            await process.StandardInput.WriteAsync(sql.AsMemory(), ct);
-            await process.StandardInput.FlushAsync(ct);
-            process.StandardInput.Close();
+            try
+            {
+                await process.StandardInput.WriteAsync(sql.AsMemory(), ct);
+                await process.StandardInput.FlushAsync(ct);
+            }
+            catch (IOException) { }
+            catch (ObjectDisposedException) { }
+            finally
+            {
+                try { process.StandardInput.Close(); } catch { }
+            }
         }, ct);
 
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
-        // Collect both results regardless of which side faults so stderr is never lost.
-        string stderr;
-        try
-        {
-            await Task.WhenAll(writeTask, stderrTask);
-            stderr = stderrTask.Result;
-        }
-        catch
-        {
-            stderr = stderrTask.IsCompletedSuccessfully ? stderrTask.Result : string.Empty;
-            if (!writeTask.IsCompletedSuccessfully)
-                writeTask.Exception?.Handle(_ => true);
-            throw;
-        }
-
+        await Task.WhenAll(writeTask, stderrTask);
         await process.WaitForExitAsync(ct);
+
+        var stderr = stderrTask.Result.Trim();
 
         if (process.ExitCode != 0)
         {
-            return $"Schema apply rolled back. No DDL was committed to the destination. psql failed (exit {process.ExitCode}): {stderr.Trim()}";
+            var detail = string.IsNullOrEmpty(stderr)
+                ? $"psql exited with code {process.ExitCode} but produced no error output. The destination may be unreachable, the credentials may be wrong, or SSL may have failed."
+                : $"psql failed (exit {process.ExitCode}): {stderr}";
+            return $"Schema apply rolled back. No DDL was committed to the destination. {detail}";
         }
 
         return null;

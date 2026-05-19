@@ -240,10 +240,33 @@ public static class PostgresConnectionString
 
         foreach (var (key, valuePart) in ParseQuery(uri.Query))
         {
-            builder[key] = valuePart;
+            try
+            {
+                builder[key] = valuePart;
+            }
+            catch (ArgumentException ex)
+            {
+                throw BuildConnectionValidationException(
+                    $"PostgreSQL URL has an invalid value for '{key}': '{valuePart}'.",
+                    $"Npgsql rejected the query parameter: {ex.Message.Split('(')[0].Trim()}",
+                    BuildQueryParamHint(key, valuePart));
+            }
         }
 
         return builder;
+    }
+
+    private static string BuildQueryParamHint(string key, string value)
+    {
+        if (key.Equals("sslmode", StringComparison.OrdinalIgnoreCase))
+        {
+            var typoHint = value.Equals("required", StringComparison.OrdinalIgnoreCase)
+                ? " The value 'required' is a common typo for 'require'."
+                : string.Empty;
+            return $"Use one of: disable, allow, prefer, require, verify-ca, verify-full.{typoHint}";
+        }
+
+        return $"Remove '{key}={value}' from the URL, or replace it with a value Npgsql accepts.";
     }
 
     private static bool HasMissingHost(string value)
