@@ -36,10 +36,7 @@ public static class PostgresConnectionString
         }
         catch (UriFormatException ex)
         {
-            throw BuildConnectionValidationException(
-                $"Invalid PostgreSQL URL: {ex.Message}",
-                "The value starts like a URL, but it is not a valid absolute URL.",
-                BuildUrlTroubleshootingHint(value));
+            throw BuildUriFormatValidationException("PostgreSQL URL", ex, value);
         }
         catch (ArgumentException ex)
         {
@@ -97,10 +94,7 @@ public static class PostgresConnectionString
         }
         catch (UriFormatException ex)
         {
-            throw BuildConnectionValidationException(
-                $"Invalid PostgreSQL database URL: {ex.Message}",
-                "The value starts like a URL, but it is not a valid absolute URL.",
-                BuildUrlTroubleshootingHint(value));
+            throw BuildUriFormatValidationException("PostgreSQL database URL", ex, value);
         }
         catch (ArgumentException ex)
         {
@@ -122,6 +116,14 @@ public static class PostgresConnectionString
 
     private static NpgsqlConnectionStringBuilder ParseBuilder(string value, bool allowMissingDatabase)
     {
+        if (LooksLikeMalformedPostgresUrl(value))
+        {
+            throw BuildConnectionValidationException(
+                "PostgreSQL URL is missing '//'.",
+                "The value starts with a PostgreSQL URL scheme but does not include :// after the scheme.",
+                "Use postgres://user:password@host:5432/database or postgresql://user:password@host:5432/database.");
+        }
+
         return LooksLikeUrl(value)
             ? FromPostgresUrl(value, allowMissingDatabase)
             : new NpgsqlConnectionStringBuilder(value);
@@ -164,6 +166,13 @@ public static class PostgresConnectionString
         return value[..schemeSeparator].All(c => char.IsLetterOrDigit(c) || c is '+' or '-' or '.');
     }
 
+    private static bool LooksLikeMalformedPostgresUrl(string value)
+    {
+        return (value.StartsWith("postgres:/", StringComparison.OrdinalIgnoreCase)
+                || value.StartsWith("postgresql:/", StringComparison.OrdinalIgnoreCase))
+            && !LooksLikeUrl(value);
+    }
+
     private static bool IsPostgresUrl(Uri uri)
     {
         return uri.Scheme.Equals("postgres", StringComparison.OrdinalIgnoreCase)
@@ -172,6 +181,22 @@ public static class PostgresConnectionString
 
     private static NpgsqlConnectionStringBuilder FromPostgresUrl(string value, bool allowMissingDatabase)
     {
+        if (HasMissingHost(value))
+        {
+            throw BuildConnectionValidationException(
+                "PostgreSQL URL is missing a host.",
+                "The URL has a scheme but no server name after it.",
+                "Use a URL like postgres://user:password@host:5432/database.");
+        }
+
+        if (TryFindInvalidPort(value, out var invalidPort))
+        {
+            throw BuildConnectionValidationException(
+                $"PostgreSQL URL has an invalid port '{invalidPort}'.",
+                "The host section includes a port value that is not a number.",
+                "Use a numeric PostgreSQL port, for example :5432, or omit the port to use the default.");
+        }
+
         var uri = new Uri(value);
         if (!IsPostgresUrl(uri))
         {
@@ -179,6 +204,14 @@ public static class PostgresConnectionString
                 $"Unsupported URL scheme '{uri.Scheme}'.",
                 "The value looks like a URL, but it is not a PostgreSQL URL.",
                 "Use postgres:// or postgresql://. For key/value connection strings, use Host=...;Database=...;Username=...;Password=... instead.");
+        }
+
+        if (!string.IsNullOrEmpty(uri.Fragment))
+        {
+            throw BuildConnectionValidationException(
+                "PostgreSQL URL contains a fragment.",
+                "Everything after # is treated as a URL fragment, not as part of the password, host, or database name.",
+                "Remove the fragment. If # belongs in the username or password, percent-encode it as %23.");
         }
 
         if (string.IsNullOrWhiteSpace(uri.Host))
@@ -225,6 +258,81 @@ public static class PostgresConnectionString
         }
 
         return builder;
+    }
+
+    private static bool HasMissingHost(string value)
+    {
+        var authority = GetAuthority(value);
+        if (authority is null)
+        {
+            return false;
+        }
+
+        var atIndex = authority.LastIndexOf('@');
+        var hostPort = atIndex >= 0 ? authority[(atIndex + 1)..] : authority;
+        if (string.IsNullOrWhiteSpace(hostPort))
+        {
+            return true;
+        }
+
+        if (hostPort.StartsWith(":", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindInvalidPort(string value, out string invalidPort)
+    {
+        invalidPort = string.Empty;
+        var authority = GetAuthority(value);
+        if (authority is null)
+            return false;
+
+        var atIndex = authority.LastIndexOf('@');
+        var hostPort = atIndex >= 0 ? authority[(atIndex + 1)..] : authority;
+
+        if (hostPort.StartsWith("[", StringComparison.Ordinal))
+        {
+            var bracketEnd = hostPort.IndexOf(']');
+            if (bracketEnd < 0 || bracketEnd + 1 >= hostPort.Length || hostPort[bracketEnd + 1] != ':')
+            {
+                return false;
+            }
+
+            invalidPort = hostPort[(bracketEnd + 2)..];
+        }
+        else
+        {
+            var colonIndex = hostPort.LastIndexOf(':');
+            if (colonIndex < 0)
+            {
+                return false;
+            }
+
+            invalidPort = hostPort[(colonIndex + 1)..];
+        }
+
+        return invalidPort.Length > 0 && !invalidPort.All(char.IsDigit);
+    }
+
+    private static string? GetAuthority(string value)
+    {
+        var schemeSeparator = value.IndexOf("://", StringComparison.Ordinal);
+        if (schemeSeparator < 0)
+        {
+            return null;
+        }
+
+        var authorityStart = schemeSeparator + 3;
+        var authorityEnd = value.IndexOfAny(['/', '?', '#'], authorityStart);
+        if (authorityEnd < 0)
+        {
+            authorityEnd = value.Length;
+        }
+
+        return value[authorityStart..authorityEnd];
     }
 
     private static IEnumerable<KeyValuePair<string, string>> ParseQuery(string query)
@@ -285,6 +393,17 @@ public static class PostgresConnectionString
             summary + Environment.NewLine +
             $"What happened: {whatHappened}" + Environment.NewLine +
             $"How to resolve: {howToResolve}");
+    }
+
+    private static ValidationException BuildUriFormatValidationException(
+        string label,
+        UriFormatException exception,
+        string value)
+    {
+        return BuildConnectionValidationException(
+            $"Invalid {label}: {exception.Message}",
+            "The value starts like a URL, but it is not a valid absolute URL.",
+            BuildUrlTroubleshootingHint(value));
     }
 
     private static string BuildUrlTroubleshootingHint(string value)

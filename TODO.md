@@ -43,6 +43,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add a local preflight tab for optional tooling checks.
 - [x] Add operations log export from the desktop app.
 - [x] Add severity coloring to the desktop operations log.
+- [x] Expand operations log colors for active work, table data, and guidance lines.
 
 ## Safety
 
@@ -52,6 +53,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Refuse to append into non-empty destination tables without truncation.
 - [x] Keep raw connection strings and passwords out of logs.
 - [x] Make invalid PostgreSQL URL errors more specific.
+- [x] Cover malformed PostgreSQL URL cases: missing host, invalid port, fragments, and malformed schemes.
 
 ## Copy Behavior
 

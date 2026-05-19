@@ -25,6 +25,9 @@ public sealed class MainForm : Form
     private static readonly Color LogSuccessColor = Color.FromArgb(134, 239, 172);
     private static readonly Color LogWarningColor = Color.FromArgb(251, 191, 36);
     private static readonly Color LogErrorColor = Color.FromArgb(252, 129, 129);
+    private static readonly Color LogWorkColor = Color.FromArgb(147, 197, 253);
+    private static readonly Color LogDataColor = Color.FromArgb(216, 180, 254);
+    private static readonly Color LogHelpColor = Color.FromArgb(203, 213, 225);
     private const string RepositoryUrl = "https://github.com/soulwax/PGCopy";
 
     // Connection tab
@@ -1536,6 +1539,7 @@ public sealed class MainForm : Form
         }
 
         if (message.StartsWith("[warn]", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("cancelled", StringComparison.OrdinalIgnoreCase)
             || message.Contains("warning", StringComparison.OrdinalIgnoreCase)
             || message.Contains("Truncate destination", StringComparison.OrdinalIgnoreCase)
             || message.Contains("will be truncated", StringComparison.OrdinalIgnoreCase))
@@ -1545,6 +1549,9 @@ public sealed class MainForm : Form
 
         if (message.StartsWith("OK", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("[ok]", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Copied ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Connected:", StringComparison.OrdinalIgnoreCase)
+            || message.Contains(" established", StringComparison.OrdinalIgnoreCase)
             || message.Contains(" passed", StringComparison.OrdinalIgnoreCase)
             || message.Contains(" complete", StringComparison.OrdinalIgnoreCase))
         {
@@ -1558,13 +1565,36 @@ public sealed class MainForm : Form
             return LogStepColor;
         }
 
+        if (message.StartsWith("Copying ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Checking ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Connecting ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Running ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Discovering ", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogWorkColor;
+        }
+
+        if (message.StartsWith("Origin:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Destination:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Database:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Databases:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Tables:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Schema:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("  -", StringComparison.Ordinal)
+            || message.StartsWith("  ", StringComparison.Ordinal))
+        {
+            return LogDataColor;
+        }
+
         if (message.StartsWith("What happened:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("How to resolve:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("What to try:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Why PostgresCopy stopped:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("SQLSTATE:", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
         {
-            return LogMutedColor;
+            return LogHelpColor;
         }
 
         return LogForeColor;

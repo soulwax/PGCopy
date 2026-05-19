@@ -73,7 +73,7 @@ Both share the same migration core, so copy behavior is kept consistent.
 - **Row-count verification** with `--verify`.
 - **Sequence sync** — identity/serial sequences are realigned after copy so new inserts don't collide.
 - **Truncate gate** — destination truncation requires an explicit checkbox and warning confirmation before rows are deleted.
-- **Clear diagnostics** — invalid URLs call out missing hosts, missing database names, unsupported schemes, and common password-encoding problems.
+- **Clear diagnostics** — invalid URLs call out missing hosts, missing database names, bad ports, fragments, unsupported schemes, malformed schemes, and common password-encoding problems.
 - **No stored credentials, no background service, no telemetry.**
 
 ## Quick Start
@@ -358,7 +358,7 @@ Convenience launchers for the published builds:
 
 ## FAQ
 
-**Why does my PostgreSQL URL fail to parse?** Use `postgres://` or `postgresql://`, include a host and database name for copy operations, and percent-encode special characters in usernames or passwords. For example, `@` inside a password should be written as `%40`.
+**Why does my PostgreSQL URL fail to parse?** Use `postgres://` or `postgresql://`, include a host and database name for copy operations, use a numeric port such as `5432`, and percent-encode special characters in usernames or passwords. For example, `@` inside a password should be written as `%40`, and `#` should be `%23`.
 
 **Why PostgreSQL only?** A clear scope. Adding other engines would invite an ORM and a configuration framework, which would dilute everything.
 

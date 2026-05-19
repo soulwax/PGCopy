@@ -68,6 +68,55 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void Parse_rejects_postgres_url_without_host_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres:///app"));
+
+        Assert.Contains("missing a host", ex.Message);
+        Assert.Contains("server name", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_rejects_postgres_url_with_invalid_port_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres://user:secret@localhost:notaport/app"));
+
+        Assert.Contains("invalid port 'notaport'", ex.Message);
+        Assert.Contains("numeric PostgreSQL port", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_rejects_postgres_url_with_fragment_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres://user:sec%23ret@localhost:5432/app#ignored"));
+
+        Assert.Contains("contains a fragment", ex.Message);
+        Assert.Contains("%23", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_rejects_malformed_postgres_scheme_with_specific_message()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.Parse("postgres:/user:secret@localhost:5432/app"));
+
+        Assert.Contains("missing '//'", ex.Message);
+        Assert.Contains("postgres://", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_accepts_percent_encoded_special_characters_in_url_password()
+    {
+        var endpoint = PostgresConnectionString.Parse("postgres://user:sec%40ret%23x@localhost:5432/app");
+
+        Assert.Contains("Password=***", endpoint.RedactedConnectionString);
+        Assert.DoesNotContain("sec@ret#x", endpoint.RedactedConnectionString);
+    }
+
+    [Fact]
     public void ParseForInspection_allows_postgres_url_without_database()
     {
         var connection = PostgresConnectionString.ParseForInspection("postgres://user:secret@localhost:5432");

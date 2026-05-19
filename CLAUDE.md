@@ -64,7 +64,7 @@ PostgresCopy is close to complete; prefer polish and confidence work over new sc
 - Keep desktop copy-report export redacted by relying on the existing operations log.
 - Improve Docker integration diagnostics beyond the current `-Check` mode only when it reduces real setup friction.
 - Keep elapsed completion summaries in shared migration code so CLI and desktop logs stay aligned.
-- Preserve whole-line desktop log coloring and specific PostgreSQL URL diagnostics.
+- Preserve whole-line desktop log coloring and specific PostgreSQL URL diagnostics, including bad ports, fragments, malformed schemes, and missing hosts.
 - Consider stronger verification only as an explicit opt-in; row counts should remain the default.
 
 Avoid stored credentials, ORM/provider abstractions, non-PostgreSQL engines, background services, hosted dashboards, localhost web UI revival, and cloud-specific branches.
