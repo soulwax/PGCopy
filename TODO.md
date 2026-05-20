@@ -69,11 +69,19 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add SSH tunnel support for databases reachable only through a jump host.
 - [x] Read `~/.ssh/config` to auto-populate SSH connection fields in the GUI.
 
+## Tests
+
+- [ ] Add unit tests for `SchemaCreator.DropAndRecreateSchemaAsync()` — the drop-schema path added in the most recent feature slice has no coverage; at minimum test the error-exit-code branch.
+- [ ] Add unit tests for `MigrationSettingsValidator` — the origin ≠ destination duplicate-database check is untested.
+- [ ] Add unit tests for `SshConfigReader` — Host/HostName/User/Port/IdentityFile parsing, `~/` path expansion, and wildcard-host filtering are all untested.
+- [ ] Add integration test coverage for `--drop-schema` — CLI parser tests exist but the actual `DropAndRecreateSchemaAsync` execution path is never exercised in the Docker integration script.
+
 ## Later
 
 - Consider CLI progress polish only when it improves automation or matches desktop log clarity.
 - [x] Add elapsed-time summaries to shared dry-run/copy/schema-only completion logs.
 - [x] Add publish scripts for single-file builds.
+- Consider implementing `--batch-size` or removing it — the flag is parsed and validated but the binary COPY path does not batch; either wire it up or drop the flag and the README note to avoid confusion.
 
 ## Not Planned
 

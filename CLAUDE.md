@@ -35,6 +35,21 @@ Integration tests require Docker:
 ```powershell
 .\scripts\integration-test.ps1 -Check          # local prerequisites only, no containers
 .\scripts\integration-test.ps1                  # spin up two Postgres containers, seed, copy, verify
+.\scripts\integration-test.ps1 -KeepContainers  # leave containers running for inspection
+```
+
+CLI smoke check (same-database rejection should fail fast):
+
+```powershell
+dotnet run --project src\PostgresCopy -- --origin "postgres://user:secret@localhost:5432/app" --destination "postgres://user:secret@localhost:5432/app" --dry-run
+```
+
+Publish self-contained single-file executables:
+
+```powershell
+.\scripts\publish-desktop.ps1            # → artifacts\PostgresCopy-desktop-win-x64\
+.\scripts\publish-cli.ps1               # → artifacts\PostgresCopy-cli-win-x64\
+.\scripts\publish-desktop.ps1 -SmokeCheck  # publish + metadata/icon checks
 ```
 
 ## Architecture
@@ -42,7 +57,8 @@ Integration tests require Docker:
 PostgresCopy has **two front-ends and one shared migration core**.
 
 - `src/PostgresCopy` — shared core *plus* the scriptable CLI (a single `Exe` project). `Program.cs` is the CLI entry; everything under `Cli/`, `Config/`, `Database/`, `Migration/`, `Logging/` is reused by the desktop.
-- `src/PostgresCopy.Desktop` — Windows Forms `WinExe` (`net10.0-windows`). One window, multiple tabs. Translates UI state into `MigrationSettings` and hands them to the same `MigrationRunner` the CLI uses. Keep this layer thin — any logic worth testing belongs in the core.
+- `src/PostgresCopy.Desktop` — Windows Forms `WinExe` (`net10.0-windows`). One window, four tabs (Connection, Preflight, Peek, SSH Tunnel). Translates UI state into `MigrationSettings` and hands them to the same `MigrationRunner` the CLI uses. Keep this layer thin — any logic worth testing belongs in the core.
+- `DatabasePeekInspector` (in `Database/`) is the read-only inspector used by the Peek tab — distinct from `PostgresSchemaInspector`, which is used only during migration planning.
 
 ### Migration pipeline
 
