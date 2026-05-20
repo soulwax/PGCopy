@@ -658,7 +658,7 @@ public sealed class MainForm : Form
         StyleButton(getPgToolsButton, ButtonTone.Secondary);
         getPgToolsButton.Click += GetPgToolsButton_Click;
         SetHelp(getPgToolsButton,
-            "Copy pg_dump, psql, and required DLLs from your Scoop postgresql package into the tools\\ directory next to this executable. Enables Create schema without requiring a system PostgreSQL install. Requires Scoop with postgresql installed.");
+            "Download pg_dump, psql, and required DLLs from the EDB binaries zip (via winget manifest) into the tools\\ directory next to this executable. The zip is deleted immediately after extraction — no installation, no registry changes, no side effects. Requires internet access and winget.");
 
         var actionPanel = new FlowLayoutPanel
         {
@@ -736,7 +736,7 @@ public sealed class MainForm : Form
     private async void GetPgToolsButton_Click(object? sender, EventArgs eventArgs)
     {
         BeginLogOperation("Get pg tools");
-        runningStatusOverride = "Installing pg tools from Scoop...";
+        runningStatusOverride = "Downloading pg tools...";
         activeRun = new CancellationTokenSource();
         SetRunning(true);
         string? finalStatus = null;
@@ -756,13 +756,14 @@ public sealed class MainForm : Form
             if (script is null)
             {
                 AppendLog("ERROR: update-pg-tools.ps1 not found next to the executable or in scripts\\.");
-                AppendLog("How to resolve: run .\\scripts\\update-pg-tools.ps1 -SkipScoopUpdate from the repo root, or copy update-pg-tools.ps1 next to PostgresCopy.Desktop.exe.");
-                finalStatus = "pg tools install failed.";
+                AppendLog("How to resolve: run .\\scripts\\update-pg-tools.ps1 from the repo root, or copy update-pg-tools.ps1 next to PostgresCopy.Desktop.exe.");
+                finalStatus = "pg tools download failed.";
                 return;
             }
 
             AppendLog($"Script: {script}");
-            AppendLog("Running update-pg-tools.ps1 -SkipScoopUpdate ...");
+            AppendLog("Downloading PostgreSQL binaries zip via winget manifest (EDB CDN)...");
+            AppendLog("Note: the zip is deleted after extraction. No installation or registry changes.");
 
             var toolsDir = Path.Combine(exeDir, "tools");
             var psi = new ProcessStartInfo("pwsh")
@@ -776,7 +777,6 @@ public sealed class MainForm : Form
             psi.ArgumentList.Add("-NoProfile");
             psi.ArgumentList.Add("-File");
             psi.ArgumentList.Add(script);
-            psi.ArgumentList.Add("-SkipScoopUpdate");
             psi.ArgumentList.Add("-Destination");
             psi.ArgumentList.Add(toolsDir);
 
@@ -801,8 +801,8 @@ public sealed class MainForm : Form
             if (process.ExitCode != 0)
             {
                 AppendLog($"ERROR: update-pg-tools.ps1 exited with code {process.ExitCode}.");
-                AppendLog("How to resolve: ensure Scoop is installed and 'scoop install postgresql' has been run at least once.");
-                finalStatus = "pg tools install failed.";
+                AppendLog("How to resolve: ensure winget is available and internet access is not blocked. Check the log above for the specific failure.");
+                finalStatus = "pg tools download failed.";
                 return;
             }
 
@@ -810,24 +810,24 @@ public sealed class MainForm : Form
 
             if (SchemaCreator.PgToolsAvailable())
             {
-                AppendLog("pg tools installed. Create schema is now available.");
-                finalStatus = "pg tools installed.";
+                AppendLog("pg tools ready. Create schema is now available.");
+                finalStatus = "pg tools ready.";
             }
             else
             {
-                AppendLog("[warn] pg tools were copied but pg_dump still could not be verified. Check the tools\\ directory next to this executable.");
-                finalStatus = "pg tools install incomplete.";
+                AppendLog("[warn] pg tools were extracted but pg_dump still could not be verified. Check the tools\\ directory next to this executable.");
+                finalStatus = "pg tools download incomplete.";
             }
         }
         catch (OperationCanceledException)
         {
-            AppendLog("pg tools install cancelled.");
+            AppendLog("pg tools download cancelled.");
             finalStatus = "Cancelled.";
         }
         catch (Exception ex)
         {
             AppendLog(FormatUnexpectedError(ex.Message));
-            finalStatus = "pg tools install failed.";
+            finalStatus = "pg tools download failed.";
         }
         finally
         {
@@ -853,7 +853,7 @@ public sealed class MainForm : Form
             dropSchemaCheckBox.Checked = false;
             dropSchemaCheckBox.Enabled = false;
             var tooltip = "pg_dump and psql are required for this option. " +
-                          "Use the Get pg tools button on the Preflight tab to install them from Scoop, " +
+                          "Use the Get pg tools button on the Preflight tab to download them automatically (requires winget and internet access), " +
                           "or install PostgreSQL client tools and ensure they are on PATH.";
             SetHelp(createSchemaCheckBox, tooltip);
             SetHelp(dropSchemaCheckBox, tooltip);

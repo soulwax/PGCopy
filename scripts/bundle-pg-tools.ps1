@@ -4,15 +4,16 @@
 # subdirectory of one or more published artifacts so that pg_dump and psql are
 # available next to the executable without requiring a system PostgreSQL install.
 #
-# Run update-pg-tools.ps1 first to populate artifacts\pg-tools\ from Scoop.
+# Run update-pg-tools.ps1 first to populate artifacts\pg-tools\, or pass
+# -UpdateFirst to do both in one step.
 #
 # Usage:
 #   .\scripts\bundle-pg-tools.ps1                        # bundle into desktop + CLI artifacts
 #   .\scripts\bundle-pg-tools.ps1 -Target desktop        # desktop only
 #   .\scripts\bundle-pg-tools.ps1 -Target cli            # CLI only
 #   .\scripts\bundle-pg-tools.ps1 -Runtime win-arm64     # non-default runtime
-#   .\scripts\bundle-pg-tools.ps1 -UpdateFirst           # run update-pg-tools.ps1 before bundling
-#   .\scripts\bundle-pg-tools.ps1 -UpdateFirst -SkipScoopUpdate  # refresh from current Scoop, no scoop update
+#   .\scripts\bundle-pg-tools.ps1 -UpdateFirst           # download tools first, then bundle
+#   .\scripts\bundle-pg-tools.ps1 -UpdateFirst -PgVersion 18  # use PG18 binaries
 
 param(
     [ValidateSet("desktop", "cli", "both")]
@@ -20,11 +21,11 @@ param(
 
     [string]$Runtime = "win-x64",
 
-    # Pull fresh pg-tools from Scoop before bundling.
+    # Download fresh pg-tools via update-pg-tools.ps1 before bundling.
     [switch]$UpdateFirst,
 
     # Passed through to update-pg-tools.ps1 when -UpdateFirst is set.
-    [switch]$SkipScoopUpdate
+    [int]$PgVersion = 17
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,10 +37,8 @@ $pgToolsSrc = Join-Path $root "artifacts\pg-tools"
 
 if ($UpdateFirst) {
     $updateScript = Join-Path $root "scripts\update-pg-tools.ps1"
-    $updateArgs   = @{}
-    if ($SkipScoopUpdate) { $updateArgs["SkipScoopUpdate"] = $true }
-    Write-Host "Running update-pg-tools.ps1..."
-    & $updateScript @updateArgs
+    Write-Host "Running update-pg-tools.ps1 -PgVersion $PgVersion..."
+    & $updateScript -PgVersion $PgVersion
     if ($LASTEXITCODE -ne 0) { throw "update-pg-tools.ps1 failed." }
     Write-Host ""
 }
@@ -49,7 +48,7 @@ if ($UpdateFirst) {
 if (-not (Test-Path $pgToolsSrc)) {
     throw @"
 artifacts\pg-tools\ does not exist.
-Run  .\scripts\update-pg-tools.ps1  first to populate it from Scoop,
+Run  .\scripts\update-pg-tools.ps1  first to download it from EDB,
 or re-run this script with  -UpdateFirst  to do both in one step.
 "@
 }
