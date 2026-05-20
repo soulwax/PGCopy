@@ -65,9 +65,52 @@ Write-Host "Downloading binaries zip..."
 Write-Host "  -> $tmpZip"
 
 try {
-    Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -UseBasicParsing
+    # Use HttpClient for streaming progress — Invoke-WebRequest buffers everything first.
+    $httpClient = [System.Net.Http.HttpClient]::new()
+    $httpClient.Timeout = [System.TimeSpan]::FromMinutes(10)
+    try {
+        $response = $httpClient.GetAsync($zipUrl, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+        $response.EnsureSuccessStatusCode() | Out-Null
+
+        $totalBytes = $response.Content.Headers.ContentLength
+        $totalMb = if ($totalBytes) { [math]::Round($totalBytes / 1MB, 1) } else { "?" }
+        Write-Host "  Size: ${totalMb} MB"
+
+        $stream   = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+        $outStream = [System.IO.File]::Create($tmpZip)
+        try {
+            $buffer    = [byte[]]::new(131072)  # 128 KB chunks
+            $received  = 0L
+            $lastReport = 0L
+            $read = $stream.Read($buffer, 0, $buffer.Length)
+            while ($read -gt 0) {
+                $outStream.Write($buffer, 0, $read)
+                $received += $read
+                # Emit a progress line every ~2 MB so the GUI log stays live.
+                if (($received - $lastReport) -ge 2MB) {
+                    $mb = [math]::Round($received / 1MB, 1)
+                    if ($totalBytes) {
+                        $pct = [math]::Round($received * 100 / $totalBytes)
+                        Write-Host "  Downloading... ${mb} / ${totalMb} MB  (${pct}%)"
+                    } else {
+                        Write-Host "  Downloading... ${mb} MB"
+                    }
+                    $lastReport = $received
+                }
+                $read = $stream.Read($buffer, 0, $buffer.Length)
+            }
+        }
+        finally {
+            $outStream.Dispose()
+            $stream.Dispose()
+        }
+    }
+    finally {
+        $httpClient.Dispose()
+    }
+
     $sizeMb = [math]::Round((Get-Item $tmpZip).Length / 1MB, 1)
-    Write-Host "Downloaded ${sizeMb} MB."
+    Write-Host "Downloaded ${sizeMb} MB — OK"
 }
 catch {
     Remove-Item $tmpZip -ErrorAction SilentlyContinue

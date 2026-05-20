@@ -48,6 +48,7 @@ public sealed class MainForm : Form
     // Preflight tab
     private readonly Button preflightButton = new();
     private readonly Button getPgToolsButton = new();
+    private readonly Label pgToolsStatusLabel = new();
 
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
@@ -79,6 +80,7 @@ public sealed class MainForm : Form
     private readonly Panel logScrollThumb = new();
     private readonly Button logFontDecreaseButton = new();
     private readonly Button logFontIncreaseButton = new();
+    private readonly Button logClearInlineButton = new();
     private readonly Label statusLabel = new();
     private readonly ToolTip helpToolTip = new();
 
@@ -660,6 +662,10 @@ public sealed class MainForm : Form
         SetHelp(getPgToolsButton,
             "Download pg_dump, psql, and required DLLs from the EDB binaries zip (via winget manifest) into the tools\\ directory next to this executable. The zip is deleted immediately after extraction — no installation, no registry changes, no side effects. Requires internet access and winget.");
 
+        pgToolsStatusLabel.AutoSize = true;
+        pgToolsStatusLabel.Font = new Font(Font.FontFamily, 9f, FontStyle.Regular);
+        pgToolsStatusLabel.Margin = new Padding(10, 6, 0, 0);
+
         var actionPanel = new FlowLayoutPanel
         {
             AutoSize = true,
@@ -669,6 +675,7 @@ public sealed class MainForm : Form
         };
         actionPanel.Controls.Add(preflightButton);
         actionPanel.Controls.Add(getPgToolsButton);
+        actionPanel.Controls.Add(pgToolsStatusLabel);
 
         var note = new Label
         {
@@ -841,7 +848,7 @@ public sealed class MainForm : Form
     }
 
     // Checks whether pg_dump/psql are available (bundled tools\ or PATH) and
-    // enables or disables the schema-copy checkboxes accordingly.
+    // enables or disables the schema-copy checkboxes and status label accordingly.
     private void UpdatePgToolsState()
     {
         var available = SchemaCreator.PgToolsAvailable();
@@ -857,6 +864,9 @@ public sealed class MainForm : Form
                           "or install PostgreSQL client tools and ensure they are on PATH.";
             SetHelp(createSchemaCheckBox, tooltip);
             SetHelp(dropSchemaCheckBox, tooltip);
+
+            pgToolsStatusLabel.Text = "pg tools not found";
+            pgToolsStatusLabel.ForeColor = Color.FromArgb(180, 80, 80);
         }
         else
         {
@@ -864,6 +874,11 @@ public sealed class MainForm : Form
                 "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
             SetHelp(dropSchemaCheckBox,
                 "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
+
+            var pgDumpPath = SchemaCreator.ResolveToolPath("pg_dump");
+            var source = pgDumpPath != "pg_dump" ? "bundled" : "system PATH";
+            pgToolsStatusLabel.Text = $"pg tools ready ({source})";
+            pgToolsStatusLabel.ForeColor = Color.FromArgb(60, 160, 100);
         }
 
         getPgToolsButton.Enabled = !available;
@@ -1262,12 +1277,17 @@ public sealed class MainForm : Form
 
         ConfigureLogFontButton(logFontDecreaseButton, "A-");
         ConfigureLogFontButton(logFontIncreaseButton, "A+");
+        ConfigureLogFontButton(logClearInlineButton, "✕");
         logFontDecreaseButton.Click += (_, _) => ChangeLogFontSize(-1f);
         logFontIncreaseButton.Click += (_, _) => ChangeLogFontSize(1f);
+        logClearInlineButton.Click += (_, _) => ClearLogHistory();
         SetHelp(logFontDecreaseButton, "Decrease operations log font size.");
         SetHelp(logFontIncreaseButton, "Increase operations log font size.");
+        SetHelp(logClearInlineButton, "Clear all operation history from the log.");
+        logClearInlineButton.Margin = new Padding(10, 0, 0, 0);
         logFontButtons.Controls.Add(logFontDecreaseButton);
         logFontButtons.Controls.Add(logFontIncreaseButton);
+        logFontButtons.Controls.Add(logClearInlineButton);
 
         logHeader.Controls.Add(logTitle, 0, 0);
         logHeader.Controls.Add(logFontButtons, 1, 0);
@@ -1364,8 +1384,10 @@ public sealed class MainForm : Form
     {
         logFontDecreaseButton.Enabled = logFontSize > MinLogFontSize;
         logFontIncreaseButton.Enabled = logFontSize < MaxLogFontSize;
+        logClearInlineButton.Enabled = logTextBox.TextLength > 0;
         logFontDecreaseButton.Cursor = logFontDecreaseButton.Enabled ? Cursors.Hand : Cursors.Default;
         logFontIncreaseButton.Cursor = logFontIncreaseButton.Enabled ? Cursors.Hand : Cursors.Default;
+        logClearInlineButton.Cursor = logClearInlineButton.Enabled ? Cursors.Hand : Cursors.Default;
     }
 
     private Control BuildFooter()
@@ -1663,6 +1685,7 @@ public sealed class MainForm : Form
         activeLogOperation = null;
         logTextBox.Clear();
         UpdateLogScrollThumb();
+        UpdateLogFontButtonState();
     }
 
     private void SaveLogButton_Click(object? sender, EventArgs eventArgs)
@@ -1746,9 +1769,12 @@ public sealed class MainForm : Form
             || message.StartsWith("[ok]", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Copied ", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Connected:", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Downloaded ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Extracted ", StringComparison.OrdinalIgnoreCase)
             || message.Contains(" established", StringComparison.OrdinalIgnoreCase)
             || message.Contains(" passed", StringComparison.OrdinalIgnoreCase)
-            || message.Contains(" complete", StringComparison.OrdinalIgnoreCase))
+            || message.Contains(" complete", StringComparison.OrdinalIgnoreCase)
+            || message.Contains(" ready", StringComparison.OrdinalIgnoreCase))
         {
             return LogSuccessColor;
         }
@@ -1764,7 +1790,10 @@ public sealed class MainForm : Form
             || message.StartsWith("Checking ", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Connecting ", StringComparison.OrdinalIgnoreCase)
             || message.StartsWith("Running ", StringComparison.OrdinalIgnoreCase)
-            || message.StartsWith("Discovering ", StringComparison.OrdinalIgnoreCase))
+            || message.StartsWith("Discovering ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Downloading ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Resolving ", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Extracting ", StringComparison.OrdinalIgnoreCase))
         {
             return LogWorkColor;
         }
@@ -1947,6 +1976,8 @@ public sealed class MainForm : Form
 
         clearLogButton.Enabled = !running;
         saveLogButton.Enabled = !running;
+        logClearInlineButton.Enabled = !running && logTextBox.TextLength > 0;
+        logClearInlineButton.Cursor = logClearInlineButton.Enabled ? Cursors.Hand : Cursors.Default;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
         RefreshButtonStyles();
