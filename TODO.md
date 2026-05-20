@@ -71,10 +71,10 @@ Keep PostgresCopy small: one tool, one job, clear output.
 
 ## Tests
 
-- [ ] Add unit tests for `SchemaCreator.DropAndRecreateSchemaAsync()` — the drop-schema path added in the most recent feature slice has no coverage; at minimum test the error-exit-code branch.
-- [ ] Add unit tests for `MigrationSettingsValidator` — the origin ≠ destination duplicate-database check is untested.
-- [ ] Add unit tests for `SshConfigReader` — Host/HostName/User/Port/IdentityFile parsing, `~/` path expansion, and wildcard-host filtering are all untested.
-- [ ] Add integration test coverage for `--drop-schema` — CLI parser tests exist but the actual `DropAndRecreateSchemaAsync` execution path is never exercised in the Docker integration script.
+- [x] Add unit tests for `SchemaCreator.DropAndRecreateSchemaAsync()` — the drop-schema path added in the most recent feature slice has no coverage; at minimum test the error-exit-code branch.
+- [x] Add unit tests for `MigrationSettingsValidator` — the origin ≠ destination duplicate-database check is untested.
+- [x] Add unit tests for `SshConfigReader` — Host/HostName/User/Port/IdentityFile parsing, `~/` path expansion, and wildcard-host filtering are all untested.
+- [x] Add integration test coverage for `--drop-schema` — CLI parser tests exist but the actual `DropAndRecreateSchemaAsync` execution path is never exercised in the Docker integration script.
 
 ## Later
 

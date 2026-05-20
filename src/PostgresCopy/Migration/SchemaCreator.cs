@@ -17,16 +17,18 @@ public static class SchemaCreator
         string schema,
         CancellationToken cancellationToken)
     {
-        var pgDumpError = CheckToolAvailable("pg_dump");
+        var pgDump = ResolveToolPath("pg_dump");
+        var pgDumpError = CheckToolAvailable(pgDump);
         if (pgDumpError != null) return pgDumpError;
 
-        var psqlError = CheckToolAvailable("psql");
+        var psql = ResolveToolPath("psql");
+        var psqlError = CheckToolAvailable(psql);
         if (psqlError != null) return psqlError;
 
         var originUrl = BuildPgUrl(originConnectionString);
         var destUrl = BuildPgUrl(destConnectionString);
 
-        var (schemaSql, dumpError) = await RunDumpAsync(originUrl, schema, cancellationToken);
+        var (schemaSql, dumpError) = await RunDumpAsync(pgDump, originUrl, schema, cancellationToken);
         if (dumpError != null) return dumpError;
 
         // We always pre-create the destination schema (in DropAndRecreateSchemaAsync, or
@@ -34,7 +36,7 @@ public static class SchemaCreator
         // to avoid "schema already exists" failures under ON_ERROR_STOP=1.
         schemaSql = StripCreateSchemaStatements(schemaSql, schema);
 
-        return await RunPsqlAsync(destUrl, schemaSql, cancellationToken);
+        return await RunPsqlAsync(psql, destUrl, schemaSql, cancellationToken);
     }
 
     public static async Task<string?> DropAndRecreateSchemaAsync(
@@ -42,15 +44,40 @@ public static class SchemaCreator
         string schema,
         CancellationToken cancellationToken)
     {
-        var psqlError = CheckToolAvailable("psql");
+        var psql = ResolveToolPath("psql");
+        var psqlError = CheckToolAvailable(psql);
         if (psqlError != null) return psqlError;
 
         var destUrl = BuildPgUrl(destConnectionString);
         var quoted = SqlIdentifier.Quote(schema);
         var sql = $"DROP SCHEMA IF EXISTS {quoted} CASCADE; CREATE SCHEMA {quoted};";
 
-        return await RunPsqlCommandAsync(destUrl, sql, cancellationToken);
+        return await RunPsqlCommandAsync(psql, destUrl, sql, cancellationToken);
     }
+
+    // Probes a tools/ directory beside the running executable before falling back to
+    // bare name resolution via PATH. This allows pg_dump.exe / psql.exe to be placed
+    // in artifacts\pg-tools\ (via scripts\update-pg-tools.ps1) without requiring a
+    // system-wide PostgreSQL installation.
+    public static string ResolveToolPath(string toolName)
+    {
+        var exe = OperatingSystem.IsWindows() ? toolName + ".exe" : toolName;
+        var processPath = Environment.ProcessPath;
+        if (processPath is not null)
+        {
+            var toolsDir = Path.Combine(Path.GetDirectoryName(processPath)!, "tools");
+            var candidate = Path.Combine(toolsDir, exe);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+        return toolName;
+    }
+
+    // Returns true when both pg_dump and psql are reachable (bundled tools\ or PATH).
+    // Cheap to call on the UI thread — each check shells out with a 3 s timeout.
+    public static bool PgToolsAvailable() =>
+        CheckToolAvailable(ResolveToolPath("pg_dump")) is null &&
+        CheckToolAvailable(ResolveToolPath("psql")) is null;
 
     internal static string StripCreateSchemaStatements(string sql, string schema)
     {
@@ -90,9 +117,9 @@ public static class SchemaCreator
     }
 
     private static async Task<(string output, string? error)> RunDumpAsync(
-        string originUrl, string schema, CancellationToken ct)
+        string pgDump, string originUrl, string schema, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo("pg_dump")
+        var psi = new ProcessStartInfo(pgDump)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -121,9 +148,9 @@ public static class SchemaCreator
         return (await outputTask, null);
     }
 
-    private static async Task<string?> RunPsqlAsync(string destUrl, string sql, CancellationToken ct)
+    private static async Task<string?> RunPsqlAsync(string psql, string destUrl, string sql, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo("psql")
+        var psi = new ProcessStartInfo(psql)
         {
             RedirectStandardInput = true,
             RedirectStandardError = true,
@@ -173,9 +200,9 @@ public static class SchemaCreator
         return null;
     }
 
-    private static async Task<string?> RunPsqlCommandAsync(string destUrl, string sql, CancellationToken ct)
+    private static async Task<string?> RunPsqlCommandAsync(string psql, string destUrl, string sql, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo("psql")
+        var psi = new ProcessStartInfo(psql)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,

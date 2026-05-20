@@ -33,9 +33,11 @@ internal static class EnvironmentPreflightChecker
 
     private static EnvironmentPreflightResult CheckPostgresTool(string tool, string detail)
     {
-        var error = SchemaCreator.CheckToolAvailable(tool);
+        var resolved = SchemaCreator.ResolveToolPath(tool);
+        var error = SchemaCreator.CheckToolAvailable(resolved);
+        var source = resolved != tool ? $"Found at {resolved}." : "Found on PATH.";
         return error is null
-            ? EnvironmentPreflightResult.Pass(tool, $"{detail} Found on PATH.")
+            ? EnvironmentPreflightResult.Pass(tool, $"{detail} {source}")
             : EnvironmentPreflightResult.Warn(tool, $"{detail} {error}");
     }
 

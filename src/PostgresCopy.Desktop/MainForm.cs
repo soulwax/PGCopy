@@ -47,6 +47,7 @@ public sealed class MainForm : Form
 
     // Preflight tab
     private readonly Button preflightButton = new();
+    private readonly Button getPgToolsButton = new();
 
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
@@ -118,6 +119,7 @@ public sealed class MainForm : Form
 
         BuildLayout();
         UpdateRunState();
+        UpdatePgToolsState();
     }
 
     private void BuildLayout()
@@ -651,6 +653,13 @@ public sealed class MainForm : Form
         SetHelp(preflightButton,
             "Check local tools used by optional workflows: pg_dump, psql, Docker, and SSH config auto-population.");
 
+        getPgToolsButton.Text = "Get pg tools";
+        getPgToolsButton.AutoSize = true;
+        StyleButton(getPgToolsButton, ButtonTone.Secondary);
+        getPgToolsButton.Click += GetPgToolsButton_Click;
+        SetHelp(getPgToolsButton,
+            "Copy pg_dump, psql, and required DLLs from your Scoop postgresql package into the tools\\ directory next to this executable. Enables Create schema without requiring a system PostgreSQL install. Requires Scoop with postgresql installed.");
+
         var actionPanel = new FlowLayoutPanel
         {
             AutoSize = true,
@@ -659,6 +668,7 @@ public sealed class MainForm : Form
             BackColor = SurfaceBackColor,
         };
         actionPanel.Controls.Add(preflightButton);
+        actionPanel.Controls.Add(getPgToolsButton);
 
         var note = new Label
         {
@@ -721,6 +731,143 @@ public sealed class MainForm : Form
             if (finalStatus is not null)
                 statusLabel.Text = finalStatus;
         }
+    }
+
+    private async void GetPgToolsButton_Click(object? sender, EventArgs eventArgs)
+    {
+        BeginLogOperation("Get pg tools");
+        runningStatusOverride = "Installing pg tools from Scoop...";
+        activeRun = new CancellationTokenSource();
+        SetRunning(true);
+        string? finalStatus = null;
+
+        try
+        {
+            // Locate the update script next to this exe, or fall back to scripts\ in the repo.
+            var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+            var scriptCandidates = new[]
+            {
+                Path.Combine(exeDir, "update-pg-tools.ps1"),
+                Path.Combine(exeDir, "scripts", "update-pg-tools.ps1"),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "scripts", "update-pg-tools.ps1"),
+            };
+            var script = scriptCandidates.FirstOrDefault(File.Exists);
+
+            if (script is null)
+            {
+                AppendLog("ERROR: update-pg-tools.ps1 not found next to the executable or in scripts\\.");
+                AppendLog("How to resolve: run .\\scripts\\update-pg-tools.ps1 -SkipScoopUpdate from the repo root, or copy update-pg-tools.ps1 next to PostgresCopy.Desktop.exe.");
+                finalStatus = "pg tools install failed.";
+                return;
+            }
+
+            AppendLog($"Script: {script}");
+            AppendLog("Running update-pg-tools.ps1 -SkipScoopUpdate ...");
+
+            var toolsDir = Path.Combine(exeDir, "tools");
+            var psi = new ProcessStartInfo("pwsh")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            psi.ArgumentList.Add("-NonInteractive");
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-File");
+            psi.ArgumentList.Add(script);
+            psi.ArgumentList.Add("-SkipScoopUpdate");
+            psi.ArgumentList.Add("-Destination");
+            psi.ArgumentList.Add(toolsDir);
+
+            using var process = Process.Start(psi)!;
+
+            // Stream output line-by-line so the log stays live.
+            var readOutput = Task.Run(async () =>
+            {
+                while (await process.StandardOutput.ReadLineAsync(activeRun.Token) is { } line)
+                    AppendLog(line);
+            }, activeRun.Token);
+
+            var readError = Task.Run(async () =>
+            {
+                while (await process.StandardError.ReadLineAsync(activeRun.Token) is { } line)
+                    AppendLog($"ERROR: {line}");
+            }, activeRun.Token);
+
+            await process.WaitForExitAsync(activeRun.Token);
+            await Task.WhenAll(readOutput, readError).WaitAsync(TimeSpan.FromSeconds(5));
+
+            if (process.ExitCode != 0)
+            {
+                AppendLog($"ERROR: update-pg-tools.ps1 exited with code {process.ExitCode}.");
+                AppendLog("How to resolve: ensure Scoop is installed and 'scoop install postgresql' has been run at least once.");
+                finalStatus = "pg tools install failed.";
+                return;
+            }
+
+            UpdatePgToolsState();
+
+            if (SchemaCreator.PgToolsAvailable())
+            {
+                AppendLog("pg tools installed. Create schema is now available.");
+                finalStatus = "pg tools installed.";
+            }
+            else
+            {
+                AppendLog("[warn] pg tools were copied but pg_dump still could not be verified. Check the tools\\ directory next to this executable.");
+                finalStatus = "pg tools install incomplete.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("pg tools install cancelled.");
+            finalStatus = "Cancelled.";
+        }
+        catch (Exception ex)
+        {
+            AppendLog(FormatUnexpectedError(ex.Message));
+            finalStatus = "pg tools install failed.";
+        }
+        finally
+        {
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
+        }
+    }
+
+    // Checks whether pg_dump/psql are available (bundled tools\ or PATH) and
+    // enables or disables the schema-copy checkboxes accordingly.
+    private void UpdatePgToolsState()
+    {
+        var available = SchemaCreator.PgToolsAvailable();
+
+        createSchemaCheckBox.Enabled = available;
+        if (!available)
+        {
+            createSchemaCheckBox.Checked = false;
+            dropSchemaCheckBox.Checked = false;
+            dropSchemaCheckBox.Enabled = false;
+            var tooltip = "pg_dump and psql are required for this option. " +
+                          "Use the Get pg tools button on the Preflight tab to install them from Scoop, " +
+                          "or install PostgreSQL client tools and ensure they are on PATH.";
+            SetHelp(createSchemaCheckBox, tooltip);
+            SetHelp(dropSchemaCheckBox, tooltip);
+        }
+        else
+        {
+            SetHelp(createSchemaCheckBox,
+                "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
+            SetHelp(dropSchemaCheckBox,
+                "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
+        }
+
+        getPgToolsButton.Enabled = !available;
+        ApplyButtonEnabledState(getPgToolsButton, ButtonTone.Secondary);
     }
 
     // ── SSH Tunnel tab ──────────────────────────────────────────────────────────
@@ -1779,6 +1926,7 @@ public sealed class MainForm : Form
         peekDatabaseTextBox.Enabled = !running;
         peekButton.Enabled = !running;
         preflightButton.Enabled = !running;
+        getPgToolsButton.Enabled = !running && !SchemaCreator.PgToolsAvailable();
 
         sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;
@@ -1836,6 +1984,7 @@ public sealed class MainForm : Form
         ApplyButtonEnabledState(runButton, ButtonTone.Primary);
         ApplyButtonEnabledState(peekButton, ButtonTone.Primary);
         ApplyButtonEnabledState(preflightButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(getPgToolsButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(testSshButton, ButtonTone.Primary);
         ApplyButtonEnabledState(sshKeyBrowseButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(clearLogButton, ButtonTone.Secondary);

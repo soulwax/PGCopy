@@ -2,15 +2,22 @@
 
 param(
     [switch]$KeepContainers,
-    [switch]$Check
+    [switch]$Check,
+
+    # Also run the --drop-schema scenario: destination starts with a dirty/wrong
+    # schema; PostgresCopy must drop it, rebuild from origin DDL, then copy data.
+    # Requires pg_dump and psql on PATH (or in the bundled tools\ directory).
+    [switch]$DropSchema
 )
 
 $ErrorActionPreference = "Stop"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$composeFile = Join-Path $root "tests/integration/docker-compose.yml"
-$originUrl = "postgres://postgres:test@localhost:55432/pgcopy"
-$destinationUrl = "postgres://postgres:test@localhost:55433/pgcopy"
+$root             = Resolve-Path (Join-Path $PSScriptRoot "..")
+$composeFile      = Join-Path $root "tests/integration/docker-compose.yml"
+$dirtyComposeFile = Join-Path $root "tests/integration/docker-compose-dirty.yml"
+$originUrl        = "postgres://postgres:test@localhost:55432/pgcopy"
+$destinationUrl   = "postgres://postgres:test@localhost:55433/pgcopy"
+$dirtyDestUrl     = "postgres://postgres:test@localhost:55434/pgcopy"
 
 function Test-IntegrationPrerequisites {
     $ok = $true
@@ -101,6 +108,24 @@ order by 1;
 "@
 }
 
+function Read-Tables {
+    param([string]$ContainerName)
+    docker exec $ContainerName psql -U postgres -d pgcopy -Atc `
+        "select tablename from pg_tables where schemaname='public' order by tablename;"
+}
+
+function Read-Columns {
+    param([string]$ContainerName, [string]$Table)
+    docker exec $ContainerName psql -U postgres -d pgcopy -Atc `
+        "select column_name from information_schema.columns where table_schema='public' and table_name='$Table' order by ordinal_position;"
+}
+
+function Test-PgToolsAvailable {
+    $pgDump = Get-Command pg_dump -ErrorAction SilentlyContinue
+    $psql   = Get-Command psql   -ErrorAction SilentlyContinue
+    return ($null -ne $pgDump -and $null -ne $psql)
+}
+
 Push-Location $root
 try {
     if ($Check) {
@@ -136,10 +161,86 @@ try {
 
     Write-Host "Integration copy passed."
     Write-Host ($destinationCounts -join "`n")
+
+    # ── Drop-schema scenario ────────────────────────────────────────────────────
+    if ($DropSchema) {
+        Write-Host ""
+        Write-Host "Running --drop-schema scenario..."
+
+        if (-not (Test-PgToolsAvailable)) {
+            throw "pg_dump and psql are required for the --drop-schema scenario. Add them to PATH or run .\scripts\update-pg-tools.ps1 first."
+        }
+
+        # Spin up a third container seeded with the intentionally wrong schema.
+        docker compose -f $dirtyComposeFile up -d
+        if ($LASTEXITCODE -ne 0) { throw "docker compose up failed for dirty destination." }
+
+        Wait-ForPostgres "pgcopy-destination-dirty"
+
+        # Verify the dirty schema is actually wrong before we fix it.
+        $dirtyTables  = Read-Tables  "pgcopy-destination-dirty"
+        $dirtyColumns = Read-Columns "pgcopy-destination-dirty" "accounts"
+
+        if ($dirtyTables -notcontains "legacy_junk") {
+            throw "Dirty destination is missing legacy_junk table — seed did not apply correctly."
+        }
+        if ($dirtyColumns -contains "display_name") {
+            throw "Dirty destination accounts table already has display_name — seed did not apply correctly."
+        }
+        Write-Host "Confirmed: dirty destination has wrong schema (missing display_name, has legacy_junk)."
+
+        # Step 1: schema-only with --drop-schema rebuilds the destination schema from origin.
+        dotnet run --project src/PostgresCopy -- `
+            --origin      $originUrl `
+            --destination $dirtyDestUrl `
+            --schema-only `
+            --drop-schema `
+            --yes
+        if ($LASTEXITCODE -ne 0) { throw "--schema-only --drop-schema run failed." }
+
+        # Step 2: verify the schema was rebuilt correctly.
+        $cleanTables  = Read-Tables  "pgcopy-destination-dirty"
+        $cleanColumns = Read-Columns "pgcopy-destination-dirty" "accounts"
+
+        if ($cleanTables -contains "legacy_junk") {
+            throw "--drop-schema did not remove legacy_junk table."
+        }
+        if ($cleanColumns -notcontains "display_name") {
+            throw "--drop-schema schema rebuild is missing display_name column on accounts."
+        }
+        if ($cleanColumns -notcontains "email") {
+            throw "--drop-schema schema rebuild is missing email column on accounts."
+        }
+        Write-Host "Confirmed: destination schema matches origin after --drop-schema (display_name present, legacy_junk gone)."
+
+        # Step 3: data copy into the now-correct schema.
+        dotnet run --project src/PostgresCopy -- `
+            --origin      $originUrl `
+            --destination $dirtyDestUrl `
+            --data-only `
+            --tables accounts,orders `
+            --truncate-destination `
+            --yes `
+            --verify
+        if ($LASTEXITCODE -ne 0) { throw "Data copy into rebuilt schema failed." }
+
+        $originCounts2 = Read-Counts "pgcopy-origin"
+        $dirtyCounts   = Read-Counts "pgcopy-destination-dirty"
+
+        if (($originCounts2 -join "`n") -ne ($dirtyCounts -join "`n")) {
+            Write-Error "Row counts did not match after --drop-schema copy.`nOrigin:`n$originCounts2`nDirty dest:`n$dirtyCounts"
+        }
+
+        Write-Host "Integration --drop-schema scenario passed."
+        Write-Host ($dirtyCounts -join "`n")
+    }
 }
 finally {
     if (-not $Check -and -not $KeepContainers) {
         docker compose -f $composeFile down --volumes --remove-orphans
+        if (Test-Path $dirtyComposeFile) {
+            docker compose -f $dirtyComposeFile down --volumes --remove-orphans
+        }
     }
 
     Pop-Location
