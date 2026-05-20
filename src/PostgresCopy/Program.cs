@@ -35,8 +35,11 @@ try
 
     var settings = MigrationSettingsValidator.Validate(parseResult.Options!);
 
-    var destructiveActionsConfirmed = !settings.TruncateDestination
+    var truncateOk = !settings.TruncateDestination
         || DestructiveActionPrompt.ConfirmTruncateDestination(settings.Yes);
+    var dropOk = !settings.DropSchema
+        || DestructiveActionPrompt.ConfirmDropSchema(settings.Schema, settings.Yes);
+    var destructiveActionsConfirmed = truncateOk && dropOk;
 
     await new MigrationRunner(console).RunAsync(
         settings,

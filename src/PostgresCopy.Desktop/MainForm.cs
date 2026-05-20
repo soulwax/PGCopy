@@ -39,6 +39,7 @@ public sealed class MainForm : Form
     private readonly CheckBox verifyCheckBox = new();
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
+    private readonly CheckBox dropSchemaCheckBox = new();
 
     // Database Peek tab
     private readonly TextBox peekDatabaseTextBox = new();
@@ -440,13 +441,27 @@ public sealed class MainForm : Form
         createSchemaCheckBox.Text = "Create schema (requires pg_dump)";
         createSchemaCheckBox.AutoSize = true;
         StyleCheckBox(createSchemaCheckBox);
+        createSchemaCheckBox.CheckedChanged += (_, _) =>
+        {
+            dropSchemaCheckBox.Enabled = createSchemaCheckBox.Checked;
+            if (!createSchemaCheckBox.Checked)
+                dropSchemaCheckBox.Checked = false;
+        };
         SetHelp(createSchemaCheckBox,
             "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
+
+        dropSchemaCheckBox.Text = "Drop destination schema first (DESTRUCTIVE)";
+        dropSchemaCheckBox.AutoSize = true;
+        dropSchemaCheckBox.Enabled = false;
+        StyleCheckBox(dropSchemaCheckBox);
+        SetHelp(dropSchemaCheckBox,
+            "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
 
         panel.Controls.Add(dryRunCheckBox);
         panel.Controls.Add(verifyCheckBox);
         panel.Controls.Add(truncateCheckBox);
         panel.Controls.Add(createSchemaCheckBox);
+        panel.Controls.Add(dropSchemaCheckBox);
         return panel;
     }
 
@@ -1303,6 +1318,13 @@ public sealed class MainForm : Form
             }
 
             var settings = BuildSettings(originText, destText);
+            if (!ConfirmDropSchemaIfNeeded(settings))
+            {
+                logger.Info("Copy cancelled before destination schema drop.");
+                statusLabel.Text = "Copy cancelled.";
+                return;
+            }
+
             if (!ConfirmTruncateIfNeeded(settings))
             {
                 logger.Info("Copy cancelled before destination truncation.");
@@ -1377,9 +1399,35 @@ public sealed class MainForm : Form
             CliOptionsParser.DefaultBatchSize,
             createSchemaCheckBox.Checked,
             false,
-            false);
+            false,
+            dropSchemaCheckBox.Checked && createSchemaCheckBox.Checked);
 
         return MigrationSettingsValidator.Validate(options);
+    }
+
+    private bool ConfirmDropSchemaIfNeeded(MigrationSettings settings)
+    {
+        if (settings.DryRun || !settings.DropSchema)
+            return true;
+
+        var message =
+            $"DROP SCHEMA \"{settings.Schema}\" CASCADE will run on the destination before any DDL is applied." +
+            Environment.NewLine + Environment.NewLine +
+            "This permanently deletes EVERY object in that schema on the destination — tables, indexes, sequences, functions, views, triggers, and the data inside them." +
+            Environment.NewLine + Environment.NewLine +
+            "Origin is not changed. There is no undo. PostgresCopy cannot recover deleted destination objects." +
+            Environment.NewLine + Environment.NewLine +
+            "Use this only when the destination should become a fresh copy of the origin. If you are unsure, choose No and run a dry run first.";
+
+        var result = MessageBox.Show(
+            this,
+            message,
+            "Confirm destination schema drop",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        return result == DialogResult.Yes;
     }
 
     private bool ConfirmTruncateIfNeeded(MigrationSettings settings)

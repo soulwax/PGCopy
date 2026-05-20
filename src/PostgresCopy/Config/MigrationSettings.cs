@@ -15,4 +15,5 @@ public sealed record MigrationSettings(
     int BatchSize,
     bool CreateSchema,
     bool SchemaOnly,
-    bool DataOnly);
+    bool DataOnly,
+    bool DropSchema = false);

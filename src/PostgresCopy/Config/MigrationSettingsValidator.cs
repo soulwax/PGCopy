@@ -41,6 +41,7 @@ public static class MigrationSettingsValidator
             options.BatchSize,
             options.CreateSchema,
             options.SchemaOnly,
-            options.DataOnly);
+            options.DataOnly,
+            options.DropSchema);
     }
 }

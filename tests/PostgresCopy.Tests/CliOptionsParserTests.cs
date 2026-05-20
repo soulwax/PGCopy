@@ -7,6 +7,64 @@ namespace PostgresCopy.Tests;
 public sealed class CliOptionsParserTests
 {
     [Fact]
+    public void Parse_drop_schema_requires_create_schema()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--drop-schema"
+        ]);
+
+        Assert.False(result.Success);
+        Assert.Contains("--drop-schema requires --create-schema", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_drop_schema_accepted_with_create_schema()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--create-schema",
+            "--drop-schema"
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.DropSchema);
+        Assert.True(result.Options.CreateSchema);
+    }
+
+    [Fact]
+    public void Parse_drop_schema_accepted_with_schema_only()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--schema-only",
+            "--drop-schema"
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.DropSchema);
+        Assert.True(result.Options.SchemaOnly);
+    }
+
+    [Fact]
+    public void Parse_drop_schema_rejects_data_only()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--data-only",
+            "--drop-schema"
+        ]);
+
+        Assert.False(result.Success);
+        Assert.Contains("--drop-schema", result.ErrorMessage);
+        Assert.Contains("--data-only", result.ErrorMessage);
+    }
+
+    [Fact]
     public void Parse_requires_origin()
     {
         var result = CliOptionsParser.Parse(["--destination", "Host=dest;Database=db"]);

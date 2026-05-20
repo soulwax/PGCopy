@@ -28,6 +28,27 @@ public sealed class MigrationRunner(IMigrationLogger logger)
 
         if (settings.CreateSchema)
         {
+            if (settings.DropSchema)
+            {
+                if (!destructiveActionsConfirmed)
+                {
+                    throw new ValidationException("Drop destination schema was not confirmed. Migration cancelled.");
+                }
+
+                logger.Step($"Dropping destination schema \"{settings.Schema}\"");
+                logger.Info("DROP SCHEMA ... CASCADE removes ALL objects (tables, indexes, sequences, functions, views, triggers) from the destination schema.");
+                var dropError = await SchemaCreator.DropAndRecreateSchemaAsync(
+                    settings.Destination.ConnectionString,
+                    settings.Schema,
+                    cancellationToken);
+                if (dropError != null)
+                {
+                    logger.Error(dropError);
+                    return new MigrationRunResult(false, 0, 0);
+                }
+                logger.Success($"Destination schema \"{settings.Schema}\" dropped and recreated empty.");
+            }
+
             logger.Step("Creating destination schema");
             logger.Info("Running pg_dump --schema-only and applying to destination.");
             logger.Info("Note: use a direct (non-pooled) connection string if pg_dump fails to connect.");

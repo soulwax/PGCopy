@@ -15,4 +15,5 @@ public sealed record CliOptions(
     int BatchSize,
     bool CreateSchema,
     bool SchemaOnly,
-    bool DataOnly);
+    bool DataOnly,
+    bool DropSchema = false);

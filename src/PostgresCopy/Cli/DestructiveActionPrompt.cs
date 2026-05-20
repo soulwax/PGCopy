@@ -22,4 +22,24 @@ public static class DestructiveActionPrompt
 
         return string.Equals(response, "TRUNCATE", StringComparison.Ordinal);
     }
+
+    public static bool ConfirmDropSchema(string schema, bool yes)
+    {
+        if (yes)
+        {
+            return true;
+        }
+
+        if (Console.IsInputRedirected)
+        {
+            return false;
+        }
+
+        Console.WriteLine($"This will DROP SCHEMA \"{schema}\" CASCADE on the destination.");
+        Console.WriteLine("All tables, indexes, sequences, functions, views, and triggers in this schema will be permanently deleted.");
+        Console.Write("Type DROP to continue: ");
+        var response = Console.ReadLine();
+
+        return string.Equals(response, "DROP", StringComparison.Ordinal);
+    }
 }

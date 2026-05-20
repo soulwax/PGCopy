@@ -2,8 +2,10 @@
 
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using Npgsql;
 using PostgresCopy.Config;
+using PostgresCopy.Database;
 
 namespace PostgresCopy.Migration;
 
@@ -27,7 +29,38 @@ public static class SchemaCreator
         var (schemaSql, dumpError) = await RunDumpAsync(originUrl, schema, cancellationToken);
         if (dumpError != null) return dumpError;
 
+        // We always pre-create the destination schema (in DropAndRecreateSchemaAsync, or
+        // implicitly because it already exists), so strip pg_dump's CREATE SCHEMA line
+        // to avoid "schema already exists" failures under ON_ERROR_STOP=1.
+        schemaSql = StripCreateSchemaStatements(schemaSql, schema);
+
         return await RunPsqlAsync(destUrl, schemaSql, cancellationToken);
+    }
+
+    public static async Task<string?> DropAndRecreateSchemaAsync(
+        string destConnectionString,
+        string schema,
+        CancellationToken cancellationToken)
+    {
+        var psqlError = CheckToolAvailable("psql");
+        if (psqlError != null) return psqlError;
+
+        var destUrl = BuildPgUrl(destConnectionString);
+        var quoted = SqlIdentifier.Quote(schema);
+        var sql = $"DROP SCHEMA IF EXISTS {quoted} CASCADE; CREATE SCHEMA {quoted};";
+
+        return await RunPsqlCommandAsync(destUrl, sql, cancellationToken);
+    }
+
+    internal static string StripCreateSchemaStatements(string sql, string schema)
+    {
+        if (string.IsNullOrEmpty(sql)) return sql;
+
+        // pg_dump emits either CREATE SCHEMA public; or CREATE SCHEMA "name";
+        // optionally followed by ALTER SCHEMA <name> OWNER TO ...;
+        // Match a whole-line statement; trailing newline is consumed so we don't leave blank lines.
+        var pattern = @"^\s*CREATE\s+SCHEMA\s+(""" + Regex.Escape(schema) + @"""|" + Regex.Escape(schema) + @")\s*;\s*\r?\n";
+        return Regex.Replace(sql, pattern, string.Empty, RegexOptions.Multiline | RegexOptions.IgnoreCase);
     }
 
     public static string? CheckToolAvailable(string tool)
@@ -135,6 +168,39 @@ public static class SchemaCreator
                 ? $"psql exited with code {process.ExitCode} but produced no error output. The destination may be unreachable, the credentials may be wrong, or SSL may have failed."
                 : $"psql failed (exit {process.ExitCode}): {stderr}";
             return $"Schema apply rolled back. No DDL was committed to the destination. {detail}";
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> RunPsqlCommandAsync(string destUrl, string sql, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo("psql")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        psi.ArgumentList.Add("-v");
+        psi.ArgumentList.Add("ON_ERROR_STOP=1");
+        psi.ArgumentList.Add("-d");
+        psi.ArgumentList.Add(destUrl);
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add(sql);
+
+        using var process = Process.Start(psi)!;
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+        await Task.WhenAll(stdoutTask, stderrTask);
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+        {
+            var stderr = stderrTask.Result.Trim();
+            var detail = string.IsNullOrEmpty(stderr)
+                ? $"psql exited with code {process.ExitCode} but produced no error output. The destination may be unreachable, the credentials may be wrong, or SSL may have failed."
+                : $"psql failed (exit {process.ExitCode}): {stderr}";
+            return $"Drop and recreate schema failed. {detail}";
         }
 
         return null;

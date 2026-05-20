@@ -22,6 +22,10 @@ public static class CliOptionsParser
           --create-schema         Copy schema DDL from origin to destination via pg_dump
                                   before copying data. Requires pg_dump and psql on PATH.
                                   Use a direct (non-pooled) connection string for this step.
+          --drop-schema           DESTRUCTIVE. Drop the destination schema (CASCADE) and
+                                  recreate it before applying DDL. Requires --create-schema
+                                  and --yes (or interactive confirmation). Deletes ALL
+                                  objects in the destination schema permanently.
           --schema-only           Copy schema DDL only, then stop before copying table data.
           --data-only             Copy table data only. Destination schema must already match.
           --dry-run               Print the plan without copying data.
@@ -52,6 +56,7 @@ public static class CliOptionsParser
         var createSchema = false;
         var schemaOnly = false;
         var dataOnly = false;
+        var dropSchema = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -117,6 +122,9 @@ public static class CliOptionsParser
                     break;
                 case "--create-schema":
                     createSchema = true;
+                    break;
+                case "--drop-schema":
+                    dropSchema = true;
                     break;
                 case "--schema-only":
                     schemaOnly = true;
@@ -186,6 +194,16 @@ public static class CliOptionsParser
             return CliParseResult.Failed("--data-only cannot be combined with --create-schema.");
         }
 
+        if (dropSchema && dataOnly)
+        {
+            return CliParseResult.Failed("--drop-schema cannot be combined with --data-only.");
+        }
+
+        if (dropSchema && !createSchema && !schemaOnly)
+        {
+            return CliParseResult.Failed("--drop-schema requires --create-schema (or --schema-only). Dropping without recreating would leave the destination empty.");
+        }
+
         return CliParseResult.Parsed(new CliOptions(
             origin,
             destination,
@@ -199,7 +217,8 @@ public static class CliOptionsParser
             batchSize,
             createSchema || schemaOnly,
             schemaOnly,
-            dataOnly));
+            dataOnly,
+            dropSchema));
     }
 
     private static bool TryReadValue(
