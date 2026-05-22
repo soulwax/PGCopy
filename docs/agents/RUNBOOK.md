@@ -64,6 +64,7 @@ Expected native GUI controls:
 - preflight check button
 - peek database URL
 - peek database button
+- history tab with successful and failed/cancelled runs separated
 - schema
 - tables
 - dry run
@@ -76,7 +77,7 @@ Expected native GUI controls:
 - save log
 - operations log
 
-For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, run button, cancel path, SSH tab, save-log path, and operations log.
+For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, history tab, run button, cancel path, SSH tab, save-log path, and operations log.
 The operations log uses colored whole-line severity for errors, warnings, steps, successes, active work, table data, and guidance lines; saved logs remain plain text.
 
 ## CLI Smoke Checks

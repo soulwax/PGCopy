@@ -74,6 +74,7 @@ Both share the same migration core, so copy behavior is kept consistent.
 - **Sequence sync** — identity/serial sequences are realigned after copy so new inserts don't collide.
 - **Truncate gate** — destination truncation requires an explicit checkbox and warning confirmation before rows are deleted.
 - **Clear diagnostics** — invalid URLs call out missing hosts, missing database names, bad ports, fragments, unsupported schemes, malformed schemes, and common password-encoding problems.
+- **Private local history** — successful dry runs, successful copies, failures, and cancellations are saved under the current Windows profile with redacted connection strings.
 - **No stored credentials, no background service, no telemetry.**
 
 ## Quick Start
@@ -110,7 +111,7 @@ Always start with `--dry-run` against a new pair of databases.
 
 ## Workflow — Desktop App
 
-This is the default manual workflow. The desktop window has four tabs (**Connection**, **Preflight**, **Peek into Database**, and **SSH Tunnel**) and a live operations log at the bottom.
+This is the default manual workflow. The desktop window has five tabs (**Connection**, **Preflight**, **Peek into Database**, **History**, and **SSH Tunnel**) and a live operations log at the bottom.
 
 ### 1. Connection tab
 
@@ -144,7 +145,13 @@ Use this for a quick read-only look before copying:
 
 Results are written to the operations log in the same console-style format as dry runs and copies. Passwords are redacted.
 
-### 4. SSH Tunnel tab *(optional)*
+### 4. History tab
+
+The History tab keeps a local-only record of dry runs and copies, separated into successful runs and failures/cancellations. It records the run time, mode, redacted origin and destination, schema, table filter, elapsed time, row totals when available, and a short result message.
+
+History is stored as JSON under the current Windows user's local application data folder (`%LOCALAPPDATA%\PostgresCopy\history.json`). Passwords are redacted before saving, and raw connection strings are never written to disk. Use **Clear history** to delete the local history file.
+
+### 5. SSH Tunnel tab *(optional)*
 
 If your database is only reachable via an SSH jump host:
 
@@ -157,7 +164,7 @@ If your database is only reachable via an SSH jump host:
 
 The tunnel is established before the migration starts and torn down in `finally` when the run ends.
 
-### 5. Copy checklist
+### 6. Copy checklist
 
 1. *(Empty destination?)* Check **Create schema**.
 2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.

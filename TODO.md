@@ -44,6 +44,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add operations log export from the desktop app.
 - [x] Add severity coloring to the desktop operations log.
 - [x] Expand operations log colors for active work, table data, and guidance lines.
+- [x] Add private local desktop history for successful and failed dry runs/copies.
 
 ## Safety
 

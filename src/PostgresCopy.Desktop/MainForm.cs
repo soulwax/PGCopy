@@ -48,6 +48,13 @@ public sealed class MainForm : Form
     // Preflight tab
     private readonly Button preflightButton = new();
 
+    // History tab
+    private readonly ListView successfulHistoryListView = new();
+    private readonly ListView failedHistoryListView = new();
+    private readonly Button refreshHistoryButton = new();
+    private readonly Button clearHistoryButton = new();
+    private readonly DesktopRunHistoryStore historyStore = new();
+
     // SSH Tunnel tab
     private readonly ComboBox sshConfigHostCombo = new();
     private readonly CheckBox sshForOriginCheckBox = new();
@@ -155,6 +162,10 @@ public sealed class MainForm : Form
         var peekTab = CreateTabPage("Peek into Database");
         peekTab.Controls.Add(BuildPeekPanel());
         tabs.TabPages.Add(peekTab);
+
+        var historyTab = CreateTabPage("History");
+        historyTab.Controls.Add(BuildHistoryPanel());
+        tabs.TabPages.Add(historyTab);
 
         var sshTab = CreateTabPage("SSH Tunnel");
         sshTab.Controls.Add(BuildSshPanel());
@@ -520,6 +531,132 @@ public sealed class MainForm : Form
         panel.Controls.Add(note, 1, row);
 
         return panel;
+    }
+
+    // ── History tab ────────────────────────────────────────────────────────────
+
+    private Control BuildHistoryPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            BackColor = SurfaceBackColor,
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+            BackColor = SurfaceBackColor,
+            Margin = new Padding(0, 0, 0, 12),
+        };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var note = new Label
+        {
+            Text = "Local run history is saved on this Windows profile only. Connection strings are redacted before they are written.",
+            AutoSize = true,
+            ForeColor = MutedTextColor,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Regular),
+            Margin = new Padding(0, 8, 16, 6),
+        };
+
+        var actions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = SurfaceBackColor,
+            Margin = Padding.Empty,
+        };
+
+        refreshHistoryButton.Text = "Refresh";
+        refreshHistoryButton.AutoSize = true;
+        StyleButton(refreshHistoryButton, ButtonTone.Secondary);
+        refreshHistoryButton.Click += (_, _) => LoadRunHistory();
+        SetHelp(refreshHistoryButton, "Reload the local run history file.");
+
+        clearHistoryButton.Text = "Clear history";
+        clearHistoryButton.AutoSize = true;
+        StyleButton(clearHistoryButton, ButtonTone.Secondary);
+        clearHistoryButton.Click += ClearHistoryButton_Click;
+        SetHelp(clearHistoryButton, "Delete locally saved run history. This does not affect the visible operations log.");
+
+        actions.Controls.Add(refreshHistoryButton);
+        actions.Controls.Add(clearHistoryButton);
+        header.Controls.Add(note, 0, 0);
+        header.Controls.Add(actions, 1, 0);
+
+        ConfigureHistoryList(successfulHistoryListView);
+        ConfigureHistoryList(failedHistoryListView);
+
+        panel.Controls.Add(header, 0, 0);
+        panel.Controls.Add(BuildHistorySection("Successful dry runs and copies", successfulHistoryListView), 0, 1);
+        panel.Controls.Add(BuildSectionLabel("Failures and cancellations"), 0, 2);
+        panel.Controls.Add(failedHistoryListView, 0, 3);
+
+        LoadRunHistory();
+        return panel;
+    }
+
+    private Control BuildHistorySection(string title, Control content)
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = SurfaceBackColor,
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.Controls.Add(BuildSectionLabel(title), 0, 0);
+        panel.Controls.Add(content, 0, 1);
+        return panel;
+    }
+
+    private Label BuildSectionLabel(string text)
+    {
+        return new Label
+        {
+            Text = text,
+            AutoSize = true,
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(54, 65, 82),
+            Margin = new Padding(0, 4, 0, 7),
+        };
+    }
+
+    private void ConfigureHistoryList(ListView listView)
+    {
+        listView.Dock = DockStyle.Fill;
+        listView.View = View.Details;
+        listView.FullRowSelect = true;
+        listView.GridLines = false;
+        listView.MultiSelect = false;
+        listView.BorderStyle = BorderStyle.FixedSingle;
+        listView.BackColor = Color.FromArgb(250, 252, 254);
+        listView.ForeColor = PrimaryTextColor;
+        listView.Font = new Font(Font.FontFamily, 9f, FontStyle.Regular);
+        listView.HideSelection = false;
+        listView.Columns.Add("When", 138);
+        listView.Columns.Add("Mode", 82);
+        listView.Columns.Add("Origin", 230);
+        listView.Columns.Add("Destination", 230);
+        listView.Columns.Add("Schema", 80);
+        listView.Columns.Add("Tables", 120);
+        listView.Columns.Add("Rows", 76, HorizontalAlignment.Right);
+        listView.Columns.Add("Elapsed", 76);
+        listView.Columns.Add("Result", 260);
     }
 
     private async void PeekButton_Click(object? sender, EventArgs eventArgs)
@@ -1282,6 +1419,101 @@ public sealed class MainForm : Form
         return footer;
     }
 
+    private void LoadRunHistory()
+    {
+        IReadOnlyList<DesktopRunHistoryEntry> entries;
+        try
+        {
+            entries = historyStore.Load();
+        }
+        catch (Exception ex)
+        {
+            successfulHistoryListView.Items.Clear();
+            failedHistoryListView.Items.Clear();
+            failedHistoryListView.Items.Add(new ListViewItem([
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                $"Could not load history: {ex.Message}",
+            ]));
+            return;
+        }
+
+        successfulHistoryListView.BeginUpdate();
+        failedHistoryListView.BeginUpdate();
+        try
+        {
+            successfulHistoryListView.Items.Clear();
+            failedHistoryListView.Items.Clear();
+
+            foreach (var entry in entries.OrderByDescending(entry => entry.StartedAtLocal))
+            {
+                var item = CreateHistoryItem(entry);
+                if (entry.Succeeded)
+                    successfulHistoryListView.Items.Add(item);
+                else
+                    failedHistoryListView.Items.Add(item);
+            }
+        }
+        finally
+        {
+            successfulHistoryListView.EndUpdate();
+            failedHistoryListView.EndUpdate();
+        }
+    }
+
+    private static ListViewItem CreateHistoryItem(DesktopRunHistoryEntry entry)
+    {
+        var item = new ListViewItem([
+            entry.StartedAtLocal.ToString("yyyy-MM-dd HH:mm"),
+            entry.Mode,
+            entry.Origin,
+            entry.Destination,
+            entry.Schema,
+            entry.Tables,
+            entry.RowsCopied.ToString("N0"),
+            FormatElapsed(entry.Elapsed),
+            entry.Message,
+        ]);
+        item.Tag = entry;
+        return item;
+    }
+
+    private void ClearHistoryButton_Click(object? sender, EventArgs eventArgs)
+    {
+        var result = MessageBox.Show(
+            this,
+            "Delete the locally saved run history for this Windows profile?",
+            "Clear history",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        if (result != DialogResult.Yes)
+            return;
+
+        try
+        {
+            historyStore.Clear();
+            LoadRunHistory();
+            statusLabel.Text = "Local run history cleared.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Could not clear the local history file.{Environment.NewLine}{ex.Message}",
+                "Clear history failed",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
     // ── Run logic ───────────────────────────────────────────────────────────────
 
     private async void RunButton_Click(object? sender, EventArgs eventArgs)
@@ -1292,6 +1524,13 @@ public sealed class MainForm : Form
         activeRun = new CancellationTokenSource();
         var logger = new UiMigrationLogger(AppendLog);
         SshTunnelConnection? tunnel = null;
+        var startedAt = DateTime.Now;
+        var elapsed = Stopwatch.StartNew();
+        MigrationSettings? settings = null;
+        MigrationRunResult? runResult = null;
+        var saveHistory = false;
+        var historySucceeded = false;
+        var historyMessage = string.Empty;
 
         try
         {
@@ -1317,11 +1556,13 @@ public sealed class MainForm : Form
                 }
             }
 
-            var settings = BuildSettings(originText, destText);
+            settings = BuildSettings(originText, destText);
+            saveHistory = true;
             if (!ConfirmDropSchemaIfNeeded(settings))
             {
                 logger.Info("Copy cancelled before destination schema drop.");
                 statusLabel.Text = "Copy cancelled.";
+                historyMessage = "Cancelled before destination schema drop.";
                 return;
             }
 
@@ -1329,54 +1570,71 @@ public sealed class MainForm : Form
             {
                 logger.Info("Copy cancelled before destination truncation.");
                 statusLabel.Text = "Copy cancelled.";
+                historyMessage = "Cancelled before destination truncation.";
                 return;
             }
 
-            await new MigrationRunner(logger).RunAsync(
+            runResult = await new MigrationRunner(logger).RunAsync(
                 settings,
                 destructiveActionsConfirmed: true,
                 activeRun.Token);
 
             statusLabel.Text = settings.DryRun ? "Dry run complete." : "Copy complete.";
+            historySucceeded = true;
+            historyMessage = settings.DryRun
+                ? "Dry run completed successfully."
+                : $"Copy completed: {runResult.TablesCopied:N0} table(s), {runResult.RowsCopied:N0} row(s).";
         }
         catch (ValidationException ex)
         {
             logger.Error(FormatValidationError(ex.Message));
             statusLabel.Text = "Validation failed.";
+            saveHistory = true;
+            historyMessage = ex.Message;
         }
         catch (MigrationTableException ex)
         {
             logger.Error(FormatMigrationTableError(ex.Message));
             logger.Error($"Copied before failure: {ex.TablesCopiedBeforeFailure} table(s), {ex.RowsCopiedBeforeFailure} row(s).");
             statusLabel.Text = "Migration failed.";
+            historyMessage = $"Table copy failed after {ex.TablesCopiedBeforeFailure:N0} table(s), {ex.RowsCopiedBeforeFailure:N0} row(s): {ex.Message}";
         }
         catch (VerificationException ex)
         {
             logger.Error(FormatVerificationError(ex.Message));
             statusLabel.Text = "Verification failed.";
+            historyMessage = $"Verification failed: {ex.Message}";
         }
         catch (PostgresException ex)
         {
             logger.Error(FormatPostgresError(ex));
             statusLabel.Text = "PostgreSQL error.";
+            historyMessage = $"PostgreSQL error {ex.SqlState}: {ex.MessageText}";
         }
         catch (NpgsqlException ex)
         {
             logger.Error(FormatNpgsqlError(ex.Message));
             statusLabel.Text = "Connection failed.";
+            historyMessage = $"Connection failed: {ex.Message}";
         }
         catch (OperationCanceledException)
         {
             logger.Error("Migration cancelled.");
             statusLabel.Text = "Cancelled.";
+            historyMessage = "Migration cancelled.";
         }
         catch (Exception ex)
         {
             logger.Error(FormatUnexpectedError(ex.Message));
             statusLabel.Text = "Failed.";
+            historyMessage = ex.Message;
         }
         finally
         {
+            elapsed.Stop();
+            if (saveHistory)
+                SaveRunHistory(startedAt, elapsed.Elapsed, settings, runResult, historySucceeded, historyMessage);
+
             tunnel?.Dispose();
             activeRun.Dispose();
             activeRun = null;
@@ -1403,6 +1661,100 @@ public sealed class MainForm : Form
             dropSchemaCheckBox.Checked && createSchemaCheckBox.Checked);
 
         return MigrationSettingsValidator.Validate(options);
+    }
+
+    private void SaveRunHistory(
+        DateTime startedAt,
+        TimeSpan elapsed,
+        MigrationSettings? settings,
+        MigrationRunResult? result,
+        bool succeeded,
+        string message)
+    {
+        try
+        {
+            var entry = CreateHistoryEntry(startedAt, elapsed, settings, result, succeeded, message);
+            historyStore.Append(entry);
+            LoadRunHistory();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[warn] Could not save local run history: {ex.Message}");
+        }
+    }
+
+    private DesktopRunHistoryEntry CreateHistoryEntry(
+        DateTime startedAt,
+        TimeSpan elapsed,
+        MigrationSettings? settings,
+        MigrationRunResult? result,
+        bool succeeded,
+        string message)
+    {
+        var origin = TryRedactForHistory(
+            originTextBox.Text,
+            settings?.Origin.RedactedConnectionString ?? "Origin unavailable");
+        var destination = TryRedactForHistory(
+            destinationTextBox.Text,
+            settings?.Destination.RedactedConnectionString ?? "Destination unavailable");
+        var schema = settings?.Schema
+            ?? (string.IsNullOrWhiteSpace(schemaTextBox.Text) ? "public" : schemaTextBox.Text.Trim());
+        var tables = FormatTablesForHistory(settings?.TableFilter ?? ParseTables(tablesTextBox.Text));
+        var mode = settings?.DryRun ?? dryRunCheckBox.Checked ? "Dry run" : "Copy";
+
+        return new DesktopRunHistoryEntry(
+            startedAt,
+            succeeded,
+            mode,
+            origin,
+            destination,
+            schema,
+            tables,
+            result?.TablesCopied ?? 0,
+            result?.RowsCopied ?? 0,
+            elapsed,
+            CompactHistoryMessage(message));
+    }
+
+    private static string TryRedactForHistory(string value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return fallback;
+
+        try
+        {
+            return PostgresConnectionString.Redact(value.Trim());
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private static string FormatTablesForHistory(IReadOnlyList<string> tables)
+    {
+        return tables.Count == 0 ? "All" : string.Join(", ", tables);
+    }
+
+    private static string CompactHistoryMessage(string message)
+    {
+        var firstLine = message
+            .Split([Environment.NewLine], StringSplitOptions.None)
+            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))
+            ?.Trim();
+
+        if (string.IsNullOrWhiteSpace(firstLine))
+            return "No result message.";
+
+        return firstLine.Length <= 260 ? firstLine : firstLine[..257] + "...";
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed)
+    {
+        if (elapsed.TotalMinutes >= 1)
+            return $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds}s";
+
+        return $"{elapsed.TotalSeconds:0.0}s";
     }
 
     private bool ConfirmDropSchemaIfNeeded(MigrationSettings settings)
@@ -1779,6 +2131,8 @@ public sealed class MainForm : Form
         peekDatabaseTextBox.Enabled = !running;
         peekButton.Enabled = !running;
         preflightButton.Enabled = !running;
+        refreshHistoryButton.Enabled = !running;
+        clearHistoryButton.Enabled = !running;
 
         sshConfigHostCombo.Enabled = !running;
         sshForOriginCheckBox.Enabled = !running;
@@ -1836,6 +2190,8 @@ public sealed class MainForm : Form
         ApplyButtonEnabledState(runButton, ButtonTone.Primary);
         ApplyButtonEnabledState(peekButton, ButtonTone.Primary);
         ApplyButtonEnabledState(preflightButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(refreshHistoryButton, ButtonTone.Secondary);
+        ApplyButtonEnabledState(clearHistoryButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(testSshButton, ButtonTone.Primary);
         ApplyButtonEnabledState(sshKeyBrowseButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(clearLogButton, ButtonTone.Secondary);

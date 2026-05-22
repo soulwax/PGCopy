@@ -115,3 +115,9 @@ Reason: the app now has a complete one-window GUI with connection fields, SSH tu
 The desktop app still requires an explicit **Truncate destination** checkbox, but it no longer requires typing `TRUNCATE` into a separate field. A real copy with truncation selected shows a warning dialog explaining what will be deleted, why it matters, and that origin is not changed. The default button is non-destructive.
 
 Reason: the typed confirmation was clumsy in the one-window flow. The safety boundary remains explicit at the moment rows would be deleted, while the Connection tab stays cleaner and easier to understand.
+
+## 2026-05-22: Desktop Run History Is Local and Redacted
+
+The desktop app keeps a durable History tab for successful dry runs, successful copies, failures, and cancellations. Entries are stored as JSON under `%LOCALAPPDATA%\PostgresCopy\history.json` for the current Windows profile only. Raw connection strings are not stored; history uses the same redacted connection string representation as the operations log.
+
+Reason: users need memory of what they tried and what completed without turning PostgresCopy into a hosted dashboard or credential store. Local-only, redacted history preserves the privacy promise while making repeat manual work more visible.
