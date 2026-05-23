@@ -121,10 +121,11 @@ This is the default manual workflow. The desktop window has five tabs (**Connect
 | **Destination URL** | Same shape, must point to a *different* database. |
 | **Schema** | Defaults to `public`. |
 | **Tables** | Optional, comma-separated. Empty = all base tables in the schema. |
-| **Dry run** | On by default. Performs every check and reports counts without copying. |
 | **Verify counts** | Compares origin and destination row counts after the copy. |
 | **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
-| **Create schema (requires pg_dump)** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. |
+| **Create destination schema** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. Recommended for empty destination databases. |
+
+The footer has separate **Dry run** and **Copy** buttons. Use **Dry run** to preview the plan and counts; use **Copy** when the destination is ready. Leave **Create destination schema** off for a pure no-write preview.
 
 ### 2. Preflight tab
 
@@ -166,12 +167,12 @@ The tunnel is established before the migration starts and torn down in `finally`
 
 ### 6. Copy checklist
 
-1. *(Empty destination?)* Check **Create schema**.
+1. *(Empty destination?)* Check **Create destination schema**.
 2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
 3. Paste both URLs.
-4. Keep **Dry run** checked. Click **Run dry run**. Read the operations log carefully.
+4. Click **Dry run**. Read the operations log carefully.
 5. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
-6. Uncheck **Dry run**, keep **Verify counts** checked, click **Run copy**.
+6. Keep **Verify counts** checked and click **Copy**.
 7. Watch the log. The final line reports tables copied, rows transferred, and elapsed time.
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.

@@ -35,7 +35,6 @@ public sealed class MainForm : Form
     private readonly TextBox destinationTextBox = new();
     private readonly TextBox schemaTextBox = new();
     private readonly TextBox tablesTextBox = new();
-    private readonly CheckBox dryRunCheckBox = new();
     private readonly CheckBox verifyCheckBox = new();
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
@@ -78,6 +77,7 @@ public sealed class MainForm : Form
     private readonly Button testSshButton = new();
 
     // Footer
+    private readonly Button dryRunButton = new();
     private readonly Button runButton = new();
     private readonly Button cancelButton = new();
     private readonly Button clearLogButton = new();
@@ -98,6 +98,7 @@ public sealed class MainForm : Form
     private LogOperation? activeLogOperation;
     private CancellationTokenSource? activeRun;
     private string? runningStatusOverride;
+    private bool activeRunDryRun;
     private bool syncingConnectionText;
     private bool draggingLogScrollThumb;
     private int logScrollDragStartY;
@@ -431,13 +432,17 @@ public sealed class MainForm : Form
             Padding = new Padding(0, 2, 0, 0),
         };
 
-        dryRunCheckBox.Text = "Dry run";
-        dryRunCheckBox.Checked = true;
-        dryRunCheckBox.AutoSize = true;
-        StyleCheckBox(dryRunCheckBox);
-        dryRunCheckBox.CheckedChanged += (_, _) => UpdateRunState();
-        SetHelp(dryRunCheckBox,
-            "Runs every validation and shows counts without copying or deleting rows. Start here when using a new database pair.");
+        createSchemaCheckBox.Text = "Create destination schema";
+        createSchemaCheckBox.AutoSize = true;
+        StyleCheckBox(createSchemaCheckBox);
+        createSchemaCheckBox.CheckedChanged += (_, _) =>
+        {
+            dropSchemaCheckBox.Enabled = createSchemaCheckBox.Checked && SchemaCreator.PgToolsAvailable();
+            if (!createSchemaCheckBox.Checked)
+                dropSchemaCheckBox.Checked = false;
+        };
+        SetHelp(createSchemaCheckBox,
+            "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Recommended for an empty destination database. Requires pg_dump and psql.");
 
         verifyCheckBox.Text = "Verify counts";
         verifyCheckBox.Checked = true;
@@ -453,18 +458,6 @@ public sealed class MainForm : Form
         SetHelp(truncateCheckBox,
             "Before a real copy, delete all rows from the planned destination tables so the destination becomes a fresh copy. Origin is not changed. You will still get a warning before anything is deleted.");
 
-        createSchemaCheckBox.Text = "Create schema (requires pg_dump)";
-        createSchemaCheckBox.AutoSize = true;
-        StyleCheckBox(createSchemaCheckBox);
-        createSchemaCheckBox.CheckedChanged += (_, _) =>
-        {
-            dropSchemaCheckBox.Enabled = createSchemaCheckBox.Checked;
-            if (!createSchemaCheckBox.Checked)
-                dropSchemaCheckBox.Checked = false;
-        };
-        SetHelp(createSchemaCheckBox,
-            "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
-
         dropSchemaCheckBox.Text = "Drop destination schema first (DESTRUCTIVE)";
         dropSchemaCheckBox.AutoSize = true;
         dropSchemaCheckBox.Enabled = false;
@@ -472,10 +465,9 @@ public sealed class MainForm : Form
         SetHelp(dropSchemaCheckBox,
             "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
 
-        panel.Controls.Add(dryRunCheckBox);
+        panel.Controls.Add(createSchemaCheckBox);
         panel.Controls.Add(verifyCheckBox);
         panel.Controls.Add(truncateCheckBox);
-        panel.Controls.Add(createSchemaCheckBox);
         panel.Controls.Add(dropSchemaCheckBox);
         return panel;
     }
@@ -1008,9 +1000,10 @@ public sealed class MainForm : Form
         else
         {
             SetHelp(createSchemaCheckBox,
-                "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Requires pg_dump and psql on PATH.");
+                "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Recommended for an empty destination database. Requires pg_dump and psql.");
             SetHelp(dropSchemaCheckBox,
                 "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
+            dropSchemaCheckBox.Enabled = createSchemaCheckBox.Checked;
 
             var pgDumpPath = SchemaCreator.ResolveToolPath("pg_dump");
             var source = pgDumpPath != "pg_dump" ? "bundled" : "system PATH";
@@ -1540,7 +1533,7 @@ public sealed class MainForm : Form
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        statusLabel.Text = "Ready. Start with a dry run.";
+        statusLabel.Text = "Ready. Dry run previews; Copy writes to the destination.";
         statusLabel.AutoSize = true;
         statusLabel.Anchor = AnchorStyles.Left;
         statusLabel.ForeColor = MutedTextColor;
@@ -1573,14 +1566,22 @@ public sealed class MainForm : Form
         cancelButton.Click += (_, _) => activeRun?.Cancel();
         SetHelp(cancelButton, "Ask the active run to stop at the next safe cancellation point.");
 
+        dryRunButton.Text = "Dry run";
+        dryRunButton.AutoSize = true;
+        StyleButton(dryRunButton, ButtonTone.Secondary);
+        dryRunButton.Click += DryRunButton_Click;
+        SetHelp(dryRunButton, "Preview the plan, validate both databases, and show counts without copying or deleting rows.");
+
+        runButton.Text = "Copy";
         runButton.AutoSize = true;
         StyleButton(runButton, ButtonTone.Primary);
         runButton.Click += RunButton_Click;
-        SetHelp(runButton, "Start the current mode. Dry run previews; copy writes to the destination database.");
+        SetHelp(runButton, "Copy data to the destination database. Destructive options still require confirmation.");
 
         buttons.Controls.Add(clearLogButton);
         buttons.Controls.Add(saveLogButton);
         buttons.Controls.Add(cancelButton);
+        buttons.Controls.Add(dryRunButton);
         buttons.Controls.Add(runButton);
 
         footer.Controls.Add(statusLabel, 0, 0);
@@ -1685,9 +1686,20 @@ public sealed class MainForm : Form
 
     // ── Run logic ───────────────────────────────────────────────────────────────
 
+    private async void DryRunButton_Click(object? sender, EventArgs eventArgs)
+    {
+        await RunMigrationAsync(dryRun: true);
+    }
+
     private async void RunButton_Click(object? sender, EventArgs eventArgs)
     {
-        BeginLogOperation(dryRunCheckBox.Checked ? "Dry run" : "Copy");
+        await RunMigrationAsync(dryRun: false);
+    }
+
+    private async Task RunMigrationAsync(bool dryRun)
+    {
+        BeginLogOperation(dryRun ? "Dry run" : "Copy");
+        activeRunDryRun = dryRun;
         SetRunning(true);
 
         activeRun = new CancellationTokenSource();
@@ -1725,7 +1737,7 @@ public sealed class MainForm : Form
                 }
             }
 
-            settings = BuildSettings(originText, destText);
+            settings = BuildSettings(dryRun, originText, destText);
             saveHistory = true;
             if (!ConfirmDropSchemaIfNeeded(settings))
             {
@@ -1811,14 +1823,17 @@ public sealed class MainForm : Form
         }
     }
 
-    private MigrationSettings BuildSettings(string? originOverride = null, string? destOverride = null)
+    private MigrationSettings BuildSettings(
+        bool dryRun,
+        string? originOverride = null,
+        string? destOverride = null)
     {
         var options = new CliOptions(
             originOverride ?? originTextBox.Text.Trim(),
             destOverride ?? destinationTextBox.Text.Trim(),
             string.IsNullOrWhiteSpace(schemaTextBox.Text) ? "public" : schemaTextBox.Text.Trim(),
             ParseTables(tablesTextBox.Text),
-            dryRunCheckBox.Checked,
+            dryRun,
             truncateCheckBox.Checked,
             verifyCheckBox.Checked,
             false,
@@ -1869,7 +1884,7 @@ public sealed class MainForm : Form
         var schema = settings?.Schema
             ?? (string.IsNullOrWhiteSpace(schemaTextBox.Text) ? "public" : schemaTextBox.Text.Trim());
         var tables = FormatTablesForHistory(settings?.TableFilter ?? ParseTables(tablesTextBox.Text));
-        var mode = settings?.DryRun ?? dryRunCheckBox.Checked ? "Dry run" : "Copy";
+        var mode = settings?.DryRun ?? activeRunDryRun ? "Dry run" : "Copy";
 
         return new DesktopRunHistoryEntry(
             startedAt,
@@ -2299,10 +2314,10 @@ public sealed class MainForm : Form
         destinationTextBox.Enabled = !running;
         schemaTextBox.Enabled = !running;
         tablesTextBox.Enabled = !running;
-        dryRunCheckBox.Enabled = !running;
         verifyCheckBox.Enabled = !running;
         truncateCheckBox.Enabled = !running;
-        createSchemaCheckBox.Enabled = !running;
+        createSchemaCheckBox.Enabled = !running && SchemaCreator.PgToolsAvailable();
+        dropSchemaCheckBox.Enabled = !running && createSchemaCheckBox.Checked && SchemaCreator.PgToolsAvailable();
 
         peekDatabaseTextBox.Enabled = !running;
         peekButton.Enabled = !running;
@@ -2332,6 +2347,7 @@ public sealed class MainForm : Form
         saveLogButton.Enabled = !running;
         logClearInlineButton.Enabled = !running && logTextBox.TextLength > 0;
         logClearInlineButton.Cursor = logClearInlineButton.Enabled ? Cursors.Hand : Cursors.Default;
+        dryRunButton.Enabled = !running;
         runButton.Enabled = !running;
         cancelButton.Enabled = running;
         RefreshButtonStyles();
@@ -2339,7 +2355,7 @@ public sealed class MainForm : Form
         if (running)
         {
             statusLabel.Text = runningStatusOverride
-                ?? (dryRunCheckBox.Checked ? "Running dry run..." : "Running copy...");
+                ?? (activeRunDryRun ? "Running dry run..." : "Running copy...");
         }
         else
         {
@@ -2349,24 +2365,24 @@ public sealed class MainForm : Form
 
     private void UpdateRunState()
     {
-        runButton.Text = dryRunCheckBox.Checked ? "Run dry run" : "Run copy";
+        dryRunButton.Enabled = activeRun is null;
         runButton.Enabled = activeRun is null;
+        ApplyButtonEnabledState(dryRunButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(runButton, ButtonTone.Primary);
 
         if (activeRun is null)
         {
-            if (dryRunCheckBox.Checked && truncateCheckBox.Checked)
-                statusLabel.Text = "Ready. Dry run will preview truncation without deleting data.";
-            else if (truncateCheckBox.Checked)
+            if (truncateCheckBox.Checked)
                 statusLabel.Text = "Ready to copy. You will confirm truncation before rows are deleted.";
             else
-                statusLabel.Text = dryRunCheckBox.Checked ? "Ready. Start with a dry run." : "Ready to copy.";
+                statusLabel.Text = "Ready. Dry run previews; Copy writes to the destination.";
         }
     }
 
     private void RefreshButtonStyles()
     {
         ApplyButtonEnabledState(runButton, ButtonTone.Primary);
+        ApplyButtonEnabledState(dryRunButton, ButtonTone.Secondary);
         ApplyButtonEnabledState(peekButton, ButtonTone.Primary);
         ApplyButtonEnabledState(preflightButton, ButtonTone.Primary);
         ApplyButtonEnabledState(refreshHistoryButton, ButtonTone.Secondary);
