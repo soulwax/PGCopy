@@ -66,6 +66,7 @@ internal static class EnvironmentPreflightChecker
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
+                CreateNoWindow = true,
             };
 
             foreach (var argument in arguments)

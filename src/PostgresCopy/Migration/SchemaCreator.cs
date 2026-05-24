@@ -99,6 +99,7 @@ public static class SchemaCreator
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
+                CreateNoWindow = true,
             };
             psi.ArgumentList.Add("--version");
 
@@ -124,6 +125,7 @@ public static class SchemaCreator
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            CreateNoWindow = true,
         };
         psi.ArgumentList.Add("--schema-only");
         psi.ArgumentList.Add("--no-owner");
@@ -155,6 +157,7 @@ public static class SchemaCreator
             RedirectStandardInput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            CreateNoWindow = true,
         };
         psi.ArgumentList.Add("-v");
         psi.ArgumentList.Add("ON_ERROR_STOP=1");
@@ -207,6 +210,7 @@ public static class SchemaCreator
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            CreateNoWindow = true,
         };
         psi.ArgumentList.Add("-v");
         psi.ArgumentList.Add("ON_ERROR_STOP=1");
