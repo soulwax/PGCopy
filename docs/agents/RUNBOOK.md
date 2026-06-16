@@ -122,11 +122,14 @@ The script should:
 ## Publish
 
 ```powershell
+.\scripts\dist.ps1
 .\scripts\publish-desktop.ps1
 .\scripts\publish-cli.ps1
 ```
 
-Outputs go under `artifacts/`, which is ignored by git.
+Use `dist.ps1` for binary distribution: it runs the standard non-Docker checks, publishes desktop and CLI artifacts, smoke-checks the desktop artifact, creates zip archives under `artifacts\dist`, and writes `SHA256SUMS.txt`.
+
+The lower-level publish scripts are still useful when iterating on one artifact. Outputs go under `artifacts/`, which is ignored by git.
 
 ## PostgreSQL Client Tools
 

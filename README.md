@@ -41,6 +41,14 @@ Output: `src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Deskt
 ### Distributable (single-file, self-contained)
 
 ```powershell
+.\scripts\dist.ps1
+```
+
+Output: self-contained desktop and CLI folders under `artifacts\`, zipped release archives under `artifacts\dist\`, and `artifacts\dist\SHA256SUMS.txt`.
+
+Desktop-only publish:
+
+```powershell
 .\scripts\publish-desktop.ps1
 ```
 
@@ -325,6 +333,14 @@ Requires Docker Desktop or compatible runtime.
 The desktop app and CLI can be published as single-file, self-contained Windows executables. The desktop `.exe` is the primary release artifact for normal use.
 
 ```powershell
+.\scripts\dist.ps1
+```
+
+`dist.ps1` runs the standard non-Docker checks, publishes the desktop and CLI binaries, smoke-checks the desktop artifact, creates zip archives, and writes SHA-256 checksums.
+
+Publish individual artifacts when you only need one output:
+
+```powershell
 .\scripts\publish-desktop.ps1
 .\scripts\publish-cli.ps1
 ```
@@ -348,6 +364,9 @@ Output lands under `artifacts/`:
 artifacts/
   PostgresCopy-desktop-win-x64/PostgresCopy.Desktop.exe
   PostgresCopy-cli-win-x64/PostgresCopy.exe
+  dist/PostgresCopy-desktop-win-x64.zip
+  dist/PostgresCopy-cli-win-x64.zip
+  dist/SHA256SUMS.txt
 ```
 
 Convenience launchers for the published builds:

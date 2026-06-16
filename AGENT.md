@@ -33,7 +33,7 @@ dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
 
 Also run `dotnet run --project src\PostgresCopy -- --help` after CLI changes.
 
-For native GUI, documentation, or release-facing changes, launch the desktop app and verify the one-window flow renders. If publishing behavior changes, run or document `.\scripts\publish-desktop.ps1`.
+For native GUI, documentation, or release-facing changes, launch the desktop app and verify the one-window flow renders. If publishing behavior changes, run or document `.\scripts\dist.ps1`.
 
 ## Current Caution
 

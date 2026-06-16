@@ -47,6 +47,7 @@ dotnet run --project src\PostgresCopy -- --origin "postgres://user:secret@localh
 Publish self-contained single-file executables:
 
 ```powershell
+.\scripts\dist.ps1                       # checks + desktop/CLI publish + zips + checksums
 .\scripts\publish-desktop.ps1            # → artifacts\PostgresCopy-desktop-win-x64\
 .\scripts\publish-cli.ps1               # → artifacts\PostgresCopy-cli-win-x64\
 .\scripts\publish-desktop.ps1 -SmokeCheck  # publish + metadata/icon checks
