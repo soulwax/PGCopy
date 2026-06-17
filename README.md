@@ -1,5 +1,5 @@
-
 # PostgresCopy
+
 <p align="center">
   <img src="src/PostgresCopy.Desktop/Assets/kitsunedb.png" alt="PostgresCopy logo — a kitsune leaping from database A to database B" width="512" height="512" />
 </p>
@@ -22,42 +22,44 @@ KISSS (Keep it simple, stupid, and safe) database copier. Copy database A to B. 
 
 ## Quick Use (TL;DR)
 
-### Recommended: desktop `.exe`
-
-Build and run from source:
+### Desktop app from source
 
 ```powershell
 .\Start-PostgresCopy-Desktop.cmd
 ```
 
-Or build a local debug `.exe`:
+Equivalently:
 
 ```powershell
-dotnet build src\PostgresCopy.Desktop -c Release
+dotnet run --project src\PostgresCopy.Desktop
 ```
 
-Output: `src\PostgresCopy.Desktop\bin\Release\net10.0-windows\PostgresCopy.Desktop.exe` — needs the .NET 10 runtime installed to run.
-
-### Distributable (single-file, self-contained)
-
-```powershell
-.\scripts\dist.ps1
-```
-
-Output: self-contained desktop and CLI folders under `artifacts\`, zipped release archives under `artifacts\dist\`, and `artifacts\dist\SHA256SUMS.txt`.
-
-Desktop-only publish:
+### Desktop app — published single-file `.exe` (no .NET needed)
 
 ```powershell
 .\scripts\publish-desktop.ps1
+.\artifacts\PostgresCopy-desktop-win-x64\PostgresCopy.Desktop.exe
 ```
 
-Output: `artifacts\PostgresCopy-desktop-win-x64\PostgresCopy.Desktop.exe` — bundles the .NET runtime, runs on any Windows x64 machine without prerequisites.
+### CLI — dry run
 
-CLI automation build:
-`.\scripts\publish-cli.ps1` → `artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe`
+```powershell
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --dry-run
+```
 
-Make sure to get .NET 10 from https://dotnet.microsoft.com/download if you want to run the debug builds from source.
+### CLI — full copy
+
+```powershell
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --create-schema --truncate-destination --yes --verify
+```
+
+---
 
 ## What It Is
 
@@ -108,14 +110,16 @@ dotnet run --project src\PostgresCopy.Desktop
 
 ### Run the CLI automation companion from source
 
-```bash
-dotnet run --project src/PostgresCopy -- \
-  --origin      "postgres://postgres:secret@localhost:5432/source" \
-  --destination "postgres://postgres:secret@localhost:5433/target" \
-  --dry-run
+```powershell
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --dry-run
 ```
 
 Always start with `--dry-run` against a new pair of databases.
+
+---
 
 ## Workflow — Desktop App
 
@@ -185,16 +189,18 @@ The tunnel is established before the migration starts and torn down in `finally`
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.
 
+---
+
 ## Workflow — CLI Automation
 
 Use the CLI for repeatable scripts, CI smoke checks, or terminal-first workflows. For manual one-off copies, prefer the desktop app.
 
-```bash
-dotnet run --project src/PostgresCopy -- \
-  --origin      "postgres://postgres:secret@localhost:5432/source" \
-  --destination "postgres://postgres:secret@localhost:5433/target" \
-  --create-schema \
-  --verify
+```powershell
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --create-schema `
+    --verify
 ```
 
 ### All options
@@ -207,6 +213,7 @@ dotnet run --project src/PostgresCopy -- \
 | `--table <name>` | Copy a single table. May be passed multiple times. |
 | `--tables <csv>` | Copy comma-separated tables. |
 | `--create-schema` | Run `pg_dump --schema-only` from origin into destination first. |
+| `--drop-schema` | Before `--create-schema`, drop and recreate the destination schema. |
 | `--schema-only` | Run the schema copy and stop before copying table data. |
 | `--data-only` | Copy table data only. Destination schema must already match. |
 | `--dry-run` | Print the plan, validate, report counts — but copy nothing. |
@@ -219,15 +226,17 @@ dotnet run --project src/PostgresCopy -- \
 
 ### Scripted use
 
-```bash
-dotnet run --project src/PostgresCopy -- \
-  --origin      "$ORIGIN_URL" \
-  --destination "$DEST_URL" \
-  --truncate-destination --yes \
-  --verify
+```powershell
+dotnet run --project src/PostgresCopy -- `
+    --origin      "$env:ORIGIN_URL" `
+    --destination "$env:DEST_URL" `
+    --truncate-destination --yes `
+    --verify
 ```
 
 Exit code is non-zero on any failure, validation error, or count mismatch.
+
+---
 
 ## How a Copy Runs
 
@@ -252,6 +261,8 @@ Exit code is non-zero on any failure, validation error, or count mismatch.
 └──────────────────────────────────────────────────────────────┘
 ```
 
+---
+
 ## Safety Model
 
 PostgresCopy refuses to act when something looks wrong:
@@ -264,16 +275,194 @@ PostgresCopy refuses to act when something looks wrong:
 
 Stack traces are hidden behind `--verbose` so accidental log capture doesn't leak internals.
 
-## Build, Test, Run
+---
 
-### One-shot check before committing
+## Build, Test, Run — Complete Reference
 
-```powershell
-dotnet build PostgresCopy.sln
-dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj --no-build
+### Solution layout
+
+```
+PostgresCopy.sln
+├── src/
+│   ├── PostgresCopy/              Console app (CLI), net10.0
+│   │   ├── Cli/                   Argument parsing, help text
+│   │   ├── Config/                Settings, validation, connection string handling
+│   │   ├── Database/              Postgres inspection, identifier quoting
+│   │   ├── Migration/             Planning, copying, schema creation, verification
+│   │   └── Logging/               Progress events
+│   └── PostgresCopy.Desktop/      Windows Forms GUI, net10.0-windows
+│       ├── Assets/                Embedded logo
+│       ├── MainForm.cs            One-window UI
+│       ├── SshTunnelConnection.cs
+│       └── SshConfigReader.cs
+├── tests/
+│   ├── PostgresCopy.Tests/        xUnit unit tests (no DB required)
+│   └── integration/               Docker Compose + SQL seeds
+└── scripts/                       PowerShell launchers, publish + check scripts
 ```
 
-Or use the bundled script:
+### Build
+
+```powershell
+# ── Build everything (CLI + Desktop + unit tests) ──
+dotnet build PostgresCopy.sln
+
+# ── Build individual projects ──
+dotnet build src/PostgresCopy                     # CLI only
+dotnet build src/PostgresCopy.Desktop             # Desktop only
+dotnet build tests\PostgresCopy.Tests             # Unit tests only
+
+# ── Release build ──
+dotnet build src/PostgresCopy -c Release
+dotnet build src/PostgresCopy.Desktop -c Release
+
+# ── Clean + rebuild ──
+dotnet clean PostgresCopy.sln
+dotnet build PostgresCopy.sln
+```
+
+Output locations:
+
+| Project | Debug | Release |
+|---|---|---|
+| CLI | `src\PostgresCopy\bin\Debug\net10.0\` | `src\PostgresCopy\bin\Release\net10.0\` |
+| Desktop | `src\PostgresCopy.Desktop\bin\Debug\net10.0-windows\` | `src\PostgresCopy.Desktop\bin\Release\net10.0-windows\` |
+
+### Run in Debug
+
+```powershell
+# ── Desktop GUI ──
+dotnet run --project src\PostgresCopy.Desktop
+
+# ── CLI: help ──
+dotnet run --project src\PostgresCopy -- --help
+
+# ── CLI: dry run (no data written) ──
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --dry-run
+
+# ── CLI: schema + data copy ──
+dotnet run --project src/PostgresCopy -- `
+    --origin              "postgres://postgres:secret@localhost:5432/source" `
+    --destination         "postgres://postgres:secret@localhost:5433/target" `
+    --create-schema       `
+    --truncate-destination `
+    --yes                 `
+    --verify
+
+# ── CLI: schema-only (DDL only, no data) ──
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --schema-only
+
+# ── CLI: data-only (destination schema must match) ──
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --data-only
+
+# ── CLI: specific tables ──
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --tables accounts,orders,invoices `
+    --verify
+
+# ── CLI: custom schema ──
+dotnet run --project src/PostgresCopy -- `
+    --origin      "postgres://postgres:secret@localhost:5432/source" `
+    --destination "postgres://postgres:secret@localhost:5433/target" `
+    --schema myschema
+```
+
+**Important:** The `--` separator tells `dotnet run` to pass everything after it to the application. Omitting it causes `dotnet run` to consume the flags instead.
+
+### Run in Release (framework-dependent)
+
+```powershell
+dotnet build src/PostgresCopy -c Release
+dotnet run --project src/PostgresCopy -c Release -- --help
+
+# Or run the compiled DLL directly:
+dotnet src\PostgresCopy\bin\Release\net10.0\PostgresCopy.dll --help
+```
+
+Requires the .NET 10 runtime on the target machine. The DLL is small (~70 KB) but the runtime overhead (≈100 MB install) is separate.
+
+### Publish self-contained single-file (no prerequisites)
+
+```powershell
+# ── Desktop ──
+dotnet publish src\PostgresCopy.Desktop `
+    --configuration Release `
+    --runtime win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:EnableCompressionInSingleFile=true `
+    --output artifacts\PostgresCopy-desktop-win-x64
+
+# ── CLI ──
+dotnet publish src\PostgresCopy `
+    --configuration Release `
+    --runtime win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:EnableCompressionInSingleFile=true `
+    --output artifacts\PostgresCopy-cli-win-x64
+
+# ── Run the published binaries ──
+.\artifacts\PostgresCopy-desktop-win-x64\PostgresCopy.Desktop.exe
+.\artifacts\PostgresCopy-cli-win-x64\PostgresCopy.exe --help
+```
+
+**Flag reference for `dotnet publish`:**
+
+| Flag | Purpose |
+|---|---|
+| `--configuration Release` | Optimised build: enables JIT tiering, inlining, no debug symbols |
+| `--runtime win-x64` | Target runtime identifier for x64 Windows. Change to `win-arm64` for ARM64 |
+| `--self-contained true` | Embed the .NET runtime — no system-wide install needed on the target machine |
+| `-p:PublishSingleFile=true` | Merge all assemblies into a single `.exe` file (no side-by-side DLLs) |
+| `-p:EnableCompressionInSingleFile=true` | Compress embedded assemblies inside the single file (smaller output, slightly slower startup) |
+| `--output <path>` | Destination directory for the published files |
+
+Result: a single `PostgresCopy.Desktop.exe` (~80 MB) or `PostgresCopy.exe` (~60 MB) that runs on any Windows x64 machine with **zero prerequisites**.
+
+For ARM64 targets:
+
+```powershell
+dotnet publish src\PostgresCopy --configuration Release --runtime win-arm64 --self-contained true -p:PublishSingleFile=true --output artifacts\PostgresCopy-cli-win-arm64
+```
+
+### Run unit tests
+
+```powershell
+# ── Build + test in one step ──
+dotnet test tests\PostgresCopy.Tests
+
+# ── Build once, test repeatedly ──
+dotnet build tests\PostgresCopy.Tests
+dotnet test tests\PostgresCopy.Tests --no-build
+
+# ── Filter by test class name ──
+dotnet test tests\PostgresCopy.Tests --filter "FullyQualifiedName~CliOptionsParserTests"
+
+# ── Filter by test trait / category ──
+dotnet test tests\PostgresCopy.Tests --filter "Category=Validation"
+
+# ── Verbose output ──
+dotnet test tests\PostgresCopy.Tests -v d
+
+# ── Run in Release mode ──
+dotnet test tests\PostgresCopy.Tests -c Release
+```
+
+Unit tests cover: argument parsing, settings validation, planner FK ordering, identifier quoting, credential redaction, and schema creator logic. They do **not** require a running PostgreSQL.
+
+### One-shot check before committing
 
 ```powershell
 .\scripts\check.ps1                      # build + unit tests + CLI smoke
@@ -286,94 +475,178 @@ For desktop-facing changes, also launch the GUI:
 dotnet run --project src\PostgresCopy.Desktop
 ```
 
-### Project layout
-
-```
-src/
-  PostgresCopy/          Shared migration core + CLI automation companion
-    Cli/                 Argument parsing, help text
-    Config/              Settings, validation, connection string handling
-    Database/            Postgres inspection, identifier quoting
-    Migration/           Planning, copying, schema creation, verification
-    Logging/             Progress events
-  PostgresCopy.Desktop/  Primary Windows Forms GUI and desktop .exe
-    Assets/              Embedded logo
-    MainForm.cs          One-window UI
-    SshTunnelConnection.cs / SshConfigReader.cs
-
-tests/
-  PostgresCopy.Tests/    xUnit unit tests (no DB required)
-  integration/           Docker Compose + SQL seeds for the manual integration run
-
-scripts/                 PowerShell launchers, publish + check scripts
-```
-
-### Run the unit tests
-
-Unit tests cover argument parsing, settings validation, planner FK ordering, identifier quoting, and credential redaction. They do not need a running PostgreSQL.
-
-```powershell
-dotnet test tests\PostgresCopy.Tests\PostgresCopy.Tests.csproj
-```
-
 ### Run the integration test (Docker)
 
-The integration script spins up two PostgreSQL containers, seeds the origin, runs PostgresCopy, and compares row counts.
-
 ```powershell
-.\scripts\integration-test.ps1 -Check          # verify Docker/.NET prerequisites only
+# ── Quick prereq check (no containers started) ──
+.\scripts\integration-test.ps1 -Check
+
+# ── Full integration run ──
 .\scripts\integration-test.ps1
-.\scripts\integration-test.ps1 -KeepContainers  # leave the containers running for inspection
+
+# ── Keep containers running for manual inspection ──
+.\scripts\integration-test.ps1 -KeepContainers
+
+# ── Also test the --drop-schema scenario ──
+.\scripts\integration-test.ps1 -DropSchema
 ```
 
-Requires Docker Desktop or compatible runtime.
+The integration script starts two PostgreSQL containers in Docker, seeds the origin, runs PostgresCopy, and compares row counts. Requires **Docker Desktop** (or compatible Docker runtime) running on the machine.
 
-## Publishing Self-Contained Builds
+The `-DropSchema` variant spins up a third container with a deliberately wrong schema, runs `--drop-schema --schema-only` to rebuild it from the origin DDL, then `--data-only` to copy the rows — verifying the full repair workflow.
 
-The desktop app and CLI can be published as single-file, self-contained Windows executables. The desktop `.exe` is the primary release artifact for normal use.
+### Publishing distribution artifacts
+
+#### One-shot full distribution
 
 ```powershell
 .\scripts\dist.ps1
 ```
 
-`dist.ps1` runs the standard non-Docker checks, publishes the desktop and CLI binaries, smoke-checks the desktop artifact, creates zip archives, and writes SHA-256 checksums.
+This runs: standard checks → publish desktop (with smoke test) → publish CLI → create `.zip` archives → write `SHA256SUMS.txt`.
 
-Publish individual artifacts when you only need one output:
-
-```powershell
-.\scripts\publish-desktop.ps1
-.\scripts\publish-cli.ps1
-```
-
-Run a non-interactive smoke check after publishing the desktop `.exe`:
-
-```powershell
-.\scripts\publish-desktop.ps1 -SmokeCheck
-.\scripts\smoke-published-desktop.ps1
-```
-
-For a visual smoke check, launch the published app and verify the header/logo, app icon, Connection tab, Preflight tab, Peek tab, SSH tab, Save log button, and operations log:
-
-```powershell
-.\scripts\smoke-published-desktop.ps1 -Launch
-```
-
-Output lands under `artifacts/`:
+Output:
 
 ```
 artifacts/
   PostgresCopy-desktop-win-x64/PostgresCopy.Desktop.exe
   PostgresCopy-cli-win-x64/PostgresCopy.exe
-  dist/PostgresCopy-desktop-win-x64.zip
-  dist/PostgresCopy-cli-win-x64.zip
-  dist/SHA256SUMS.txt
+  dist/
+    PostgresCopy-desktop-win-x64.zip
+    PostgresCopy-cli-win-x64.zip
+    SHA256SUMS.txt
 ```
 
-Convenience launchers for the published builds:
+Options:
 
 ```powershell
-.\Start-PostgresCopy-Desktop-Published.cmd
+.\scripts\dist.ps1 -NoArchive          # skip zip creation, just the raw folders
+.\scripts\dist.ps1 -SkipChecks         # skip build + test + CLI smoke
+.\scripts\dist.ps1 -SkipSmokeCheck     # publish but skip desktop exe smoke test
+.\scripts\dist.ps1 -Runtime win-arm64  # target ARM64
 ```
+
+#### Individual publish steps
+
+```powershell
+.\scripts\publish-desktop.ps1                          # desktop only
+.\scripts\publish-desktop.ps1 -SmokeCheck              # desktop + smoke test
+.\scripts\publish-desktop.ps1 -Runtime win-arm64       # ARM64 desktop
+.\scripts\publish-cli.ps1                              # CLI only
+.\scripts\publish-cli.ps1 -Runtime win-arm64           # ARM64 CLI
+```
+
+#### Bundle PostgreSQL tools (pg_dump, psql)
+
+If the target machine does not have PostgreSQL installed, these scripts download and bundle `pg_dump.exe`, `psql.exe`, and `libpq.dll` into the published artifact's `tools\` subdirectory:
+
+```powershell
+# Download + bundle PG17 tools into desktop + CLI artifacts
+.\scripts\bundle-pg-tools.ps1 -UpdateFirst
+
+# Bundle PG18 tools instead
+.\scripts\bundle-pg-tools.ps1 -UpdateFirst -PgVersion 18
+
+# Bundle only into the desktop artifact (existing pg-tools staging)
+.\scripts\bundle-pg-tools.ps1 -Target desktop
+
+# Update staging only, don't bundle yet
+.\scripts\update-pg-tools.ps1
+```
+
+The bundled tools are automatically discovered by the app at runtime if present in the `tools\` sibling directory.
+
+#### Smoke test a published desktop build
+
+```powershell
+.\scripts\smoke-published-desktop.ps1                # non-interactive CLI smoke (launch + close)
+.\scripts\smoke-published-desktop.ps1 -Launch        # opens the GUI for visual check
+.\scripts\publish-desktop.ps1 -SmokeCheck            # publish + smoke in one step
+```
+
+#### Convenience launchers
+
+```powershell
+.\Start-PostgresCopy-Desktop.cmd               # build & run desktop from source (debug)
+.\Start-PostgresCopy-Desktop-Published.cmd     # launch published desktop .exe
+.\Dist-PostgresCopy.cmd                        # run the full dist pipeline
+```
+
+### Debugging in VS Code
+
+The `.vscode/launch.json` provides these debug configurations (press **F5** to select and launch):
+
+| Configuration | What it does |
+|---|---|
+| **PostgresCopy Desktop** | Builds and launches the Windows Forms GUI |
+| **PostgresCopy CLI: Help** | Builds CLI and runs `--help` |
+| **PostgresCopy CLI: Dry Run Sample** | Builds CLI and runs a dry-run with sample URLs |
+| **PostgresCopy Dist** | Runs `dist.ps1` from within VS Code |
+
+Pre-launch build tasks (`build desktop`, `build cli`) build the relevant project automatically before each debug session.
+
+---
+
+## Troubleshooting
+
+### Build and run errors
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `error NETSDK1082: No runtime pack available for net10.0` | .NET 10 SDK not installed | Install from [dotnet.microsoft.com](https://dotnet.microsoft.com/download) |
+| `error MSB4216: Could not run the "Dollar" task` | Solution filter mismatch | Run `dotnet build PostgresCopy.sln` instead of opening a nested `.csproj` directly |
+| `The term 'dotnet' is not recognized` | .NET SDK not on PATH | Restart terminal after install, or use `C:\Program Files\dotnet\dotnet.exe` |
+| `error MSB3030: Could not copy the file "..."` | File locked by another process (e.g. running exe) | Close the running app and `dotnet clean` first |
+| `dotnet publish fails with NU1301: Unable to load the service index for source` | No network or offline | Run `dotnet restore` with `--source` pointing to a local or cached feed, or use `--no-restore` if packages are already cached |
+| `warning MSB3277: Found conflicts between different versions of` | NuGet version mismatch | Run `dotnet restore` to refresh package references |
+
+### Runtime errors
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `System.DllNotFoundException: Unable to load DLL 'libpq'` | Published CLI run without bundled tools | Bundle pg-tools: `.\scripts\bundle-pg-tools.ps1` or install PostgreSQL locally |
+| `Unhandled exception: Npgsql.NpgsqlException: Exception while connecting` | PostgreSQL not reachable at the given host/port | Verify with `pg_isready -h localhost -p 5432` |
+| `FATAL: password authentication failed` | Wrong credentials in URL | Check `postgres://user:**password**@host:5432/db` — URL-encode `@`, `#`, `%` in the password |
+| `Npgsql.PostgresException: 3D000: database "..." does not exist` | Database name in URL is wrong or hasn't been created | Create it first: `createdb -h localhost -U postgres dbname` |
+| `Npgsql.PostgresException: 42710: schema "public" already exists` | Destination already has a schema when `--create-schema` is used | Add `--drop-schema` to rebuild from origin, or use `--data-only` if schema already matches |
+| `Npgsql.PostgresException: 42P01: relation "..." does not exist` | Schema mismatch between origin and destination | Ensure destination has all tables with matching columns before `--data-only` |
+| `Verification failed: row count mismatch` | Data was not fully copied or destination had existing rows | Add `--truncate-destination` to clear the destination before copying |
+| `dotnet run --` arguments are ignored | Missing `--` separator before app arguments | Must be: `dotnet run --project src/PostgresCopy -- --dry-run` (note the space before `--dry-run`) |
+| `No tables selected` | Schema is empty or table filter matches nothing | Run with `--dry-run` to see the plan, or check `--schema` and `--tables` values |
+| `Relative path not found: tools\pg_dump.exe` | Published exe can't find bundled tools | The executable looks for a `tools\` directory next to itself. Run from within the artifact folder or bundle via `bundle-pg-tools.ps1` |
+
+### SSH tunnel issues
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `SSH.NET: Unable to connect to the remote server` | SSH host/port unreachable or wrong | Verify `ssh user@host -p port` works from the terminal first |
+| `SSH.NET: Private key file not found` | Wrong path to `.pem`/`.ppk`/OpenSSH key | Use the full absolute path, or use password authentication |
+| `SSH.NET: Key exchange negotiation failed` | Server uses an unsupported algorithm | Use `~/.ssh/config` entry — the desktop app auto-populates from it |
+| `Tunnel test: connection refused` | PostgreSQL is not reachable from the SSH server | The remote host in the SSH tunnel config should typically be `localhost` (as seen from the jump host) |
+
+### Connection URL syntax
+
+PostgresCopy accepts `postgres://` or `postgresql://` URLs and Npgsql connection strings.
+
+**Correct:**
+
+```
+postgres://myuser:mypassword@localhost:5432/mydb
+postgresql://myuser:mypassword@localhost:5432/mydb
+Host=localhost;Port=5432;Database=mydb;Username=myuser;Password=mypassword
+```
+
+**Common mistakes:**
+
+| Wrong URL | Problem | Fix |
+|---|---|---|
+| `postgres://user:pass@localhost/mydb` | Missing port | Add `:5432` after host |
+| `postgres://pass@localhost:5432/db` | Missing username | Use `user:pass@` format |
+| `postgres://user:p@ss@localhost:5432/db` | `@` in password is parsed as delimiter | URL-encode `@` as `%40`: `user:p%40ss@` |
+| `postgres://user:pass#1@localhost:5432/db` | `#` in password truncates the rest | URL-encode `#` as `%23`: `user:pass%231@` |
+| `localhost:5432/mydb` | Missing scheme | Prepend `postgres://` |
+
+---
 
 ## Known Limits
 
@@ -382,6 +655,8 @@ Convenience launchers for the published builds:
 - FK ordering covers discoverable in-schema dependencies only.
 - `pg_dump` cannot use Neon pooled connection strings (`*.pooler.neon.tech`) — use a direct connection for `--create-schema`.
 - Windows-first: the desktop GUI is Windows Forms (`net10.0-windows`). The CLI itself is OS-agnostic.
+
+---
 
 ## FAQ
 
@@ -394,6 +669,14 @@ Convenience launchers for the published builds:
 **Why C# and .NET 10?** Strong PostgreSQL story (Npgsql), excellent async I/O, simple single-file publishing for both CLI and Windows Forms.
 
 **Why not just use `pg_dump | pg_restore`?** PostgresCopy uses `pg_dump` for the optional schema step, but for data it streams binary COPY directly between the two live databases — no intermediate file, with live progress, FK-aware ordering, sequence sync, and verification baked in. For one-off operator work, `pg_dump | pg_restore` is fine. For a tool you'll run repeatedly, this is friendlier.
+
+**How do I use this with Neon / RDS / Cloud SQL?** Use the same `postgres://` URL you'd use with `psql`. For Neon, avoid `*.pooler.neon.tech` (pooled) for the schema step — use the direct connection. For RDS, SSH tunneling is supported if the database is in a private subnet.
+
+**Does PostgresCopy support Azure Database for PostgreSQL?** Yes — use your Azure PostgreSQL connection string in `postgres://` format. If SSL is required, Azure PostgreSQL connections work with Npgsql's default SSL settings.
+
+**Can I copy between different PostgreSQL versions?** Within PostgreSQL 13+, yes. The binary COPY protocol is stable across versions. Schema DDL generated by `pg_dump` may need adjustment for very old origins.
+
+---
 
 ## License
 
