@@ -10,6 +10,7 @@ Read these files before making design or behavior changes:
 
 - `README.md` for current user-facing behavior.
 - `TODO.md` for the lightweight backlog.
+- `TODO_POLISHING.md` for exploratory polish ideas that should stay within the safety model unless a decision explicitly changes it.
 - `docs/superpowers/specs/2026-04-30-pgcopy-design.md` for the original brainstorming sketch (marked superseded — treat as historical context, not current guidance).
 - `docs/agents/DECISIONS.md` for decisions already made.
 - `docs/agents/RUNBOOK.md` for verification commands and environment notes.
@@ -19,11 +20,13 @@ Read these files before making design or behavior changes:
 - `AGENTS.md` is the main Codex/agent instruction file.
 - `AGENT.md` is the quick self-check for short handoffs.
 - `CLAUDE.md` is the Claude Code quick-start. It may be ignored by a user-level gitignore, but keep it aligned when editing agent guidance locally.
+- `TODO_POLISHING.md` is the optional polish backlog. It is not permission to break the existing no-secret, desktop-first safety model.
 - `docs/agents/*` contains shared long-lived context that should outlast any one assistant.
 
 ## Current Shape
 
 - `src/PostgresCopy.Desktop` is the main product surface: the native one-window C# GUI and publishable Windows `.exe`.
+- The desktop app currently has five tabs: Connection, Preflight, Peek into Database, History, and SSH Tunnel. History is local, redacted, and not yet a reusable recipe/credential store.
 - `src/PostgresCopy` is the shared migration engine plus the scriptable CLI companion.
 - `tests/PostgresCopy.Tests` contains unit tests for parsing, validation, planning, and safety helpers.
 - `tests/integration` contains Docker-backed PostgreSQL seed files.
@@ -41,6 +44,7 @@ Do:
 - Print or stream human-readable progress.
 - Fail before copying when preflight detects unsafe shape.
 - Redact credentials everywhere.
+- Keep convenience state local and non-secret by default.
 
 Do not:
 
@@ -51,6 +55,7 @@ Do not:
 - Add cloud-specific behavior.
 - Reintroduce a local web UI — the native desktop app is the no-terminal path.
 - Store credentials.
+- Treat password/passphrase hashes as reusable credentials. Hashes can identify or verify a secret; they cannot recover one for SSH or PostgreSQL authentication.
 - Print raw connection strings.
 - Add destructive defaults.
 
@@ -128,8 +133,9 @@ Pick from `TODO.md`. As of v0.1.0 the most useful remaining slices are:
 
 - **Make integration testing easier when Docker is available.** The current `scripts/integration-test.ps1` has a `-Check` mode; keep improving feedback when it reduces friction.
 - **Stronger verification, opt-in only.** Keep row counts as the default, but consider sampled or checksum verification when a user explicitly asks for higher confidence.
+- **Desktop history/recipe polish, no secrets by default.** `TODO_POLISHING.md` sketches reusable run recipes and richer history; implement those as redacted local metadata unless a new credential-vault decision is recorded.
 - **CLI progress polish.** Keep CLI improvements focused on automation and parity with the desktop operations log.
 
-Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, SSH tunneling, `~/.ssh/config` auto-population, desktop preflight checks, desktop log export, desktop log severity coloring, expanded URL diagnostics, published desktop smoke checks, elapsed completion summaries, and `--schema-only` / `--data-only` are all done.
+Do not re-add completed items: partial-failure summary, dry-run row counts, destination readiness checks, schema copy via pg_dump, drop-schema repair flow, SSH tunneling, `~/.ssh/config` auto-population, desktop preflight checks, desktop `Get pg tools`, desktop history, desktop log export, desktop log severity coloring, expanded URL diagnostics, published desktop smoke checks, elapsed completion summaries, and `--schema-only` / `--data-only` are all done.
 
 Avoid expanding into presets that store secrets, provider-specific cloud helpers, upsert/conflict-resolution modes, background services, or a web UI. If adding convenience, prefer local-only, redacted, no-secret affordances such as remembering non-sensitive connection metadata.

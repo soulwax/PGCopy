@@ -62,6 +62,7 @@ Expected native GUI controls:
 - origin database URL
 - destination database URL
 - preflight check button
+- get pg tools button and pg tools status
 - peek database URL
 - peek database button
 - history tab with successful and failed/cancelled runs separated
@@ -69,6 +70,7 @@ Expected native GUI controls:
 - tables
 - dry run button
 - truncate destination with warning confirmation
+- drop destination schema first with warning confirmation
 - verify counts
 - create destination schema
 - SSH tunnel configuration
@@ -77,7 +79,7 @@ Expected native GUI controls:
 - save log
 - operations log
 
-For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, history tab, dry run button, copy button, cancel path, SSH tab, save-log path, and operations log.
+For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, get-pg-tools state, peek tab, history tab, dry run button, copy button, cancel path, SSH tab, save-log path, and operations log.
 The operations log uses colored whole-line severity for errors, warnings, steps, successes, active work, table data, and guidance lines; saved logs remain plain text.
 
 ## CLI Smoke Checks

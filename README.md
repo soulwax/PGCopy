@@ -136,6 +136,7 @@ This is the default manual workflow. The desktop window has five tabs (**Connect
 | **Verify counts** | Compares origin and destination row counts after the copy. |
 | **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
 | **Create destination schema** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. Recommended for empty destination databases. |
+| **Drop destination schema first (DESTRUCTIVE)** | When schema creation is enabled, drops and recreates the destination schema before applying origin DDL. Shows a separate warning confirmation. |
 
 The footer has separate **Dry run** and **Copy** buttons. Use **Dry run** to preview the plan and counts; use **Copy** when the destination is ready. Leave **Create destination schema** off for a pure no-write preview.
 
@@ -146,6 +147,8 @@ Use **Check environment** before a first copy or release smoke check. It writes 
 - `pg_dump` and `psql` availability for schema-copy workflows.
 - Docker CLI and daemon availability for the integration script.
 - `%USERPROFILE%\.ssh\config` host detection for SSH auto-population.
+
+Use **Get pg tools** if `pg_dump` and `psql` are missing and you want the app to download PostgreSQL client tools into the local `tools\` directory beside the executable. This requires `winget` and internet access, does not install system-wide tools, and deletes the downloaded zip after extraction.
 
 Preflight does not connect to your databases and does not store credentials.
 
@@ -162,7 +165,7 @@ Results are written to the operations log in the same console-style format as dr
 
 The History tab keeps a local-only record of dry runs and copies, separated into successful runs and failures/cancellations. It records the run time, mode, redacted origin and destination, schema, table filter, elapsed time, row totals when available, and a short result message.
 
-History is stored as JSON under the current Windows user's local application data folder (`%LOCALAPPDATA%\PostgresCopy\history.json`). Passwords are redacted before saving, and raw connection strings are never written to disk. Use **Clear history** to delete the local history file.
+History is stored as JSON under the current Windows user's local application data folder (`%LOCALAPPDATA%\PostgresCopy\history.json`). Passwords are redacted before saving, and raw connection strings are never written to disk. Use **Clear history** to delete the local history file. History is currently a record of past runs, not a saved-credential or one-click rerun system.
 
 ### 5. SSH Tunnel tab *(optional)*
 
@@ -180,12 +183,13 @@ The tunnel is established before the migration starts and torn down in `finally`
 ### 6. Copy checklist
 
 1. *(Empty destination?)* Check **Create destination schema**.
-2. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
-3. Paste both URLs.
-4. Click **Dry run**. Read the operations log carefully.
-5. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
-6. Keep **Verify counts** checked and click **Copy**.
-7. Watch the log. The final line reports tables copied, rows transferred, and elapsed time.
+2. *(Need to rebuild a wrong destination schema?)* Check **Drop destination schema first (DESTRUCTIVE)** only when the destination schema can be deleted.
+3. *(Behind a jump host?)* Configure the **SSH Tunnel** tab.
+4. Paste both URLs.
+5. Click **Dry run**. Read the operations log carefully.
+6. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
+7. Keep **Verify counts** checked and click **Copy**.
+8. Watch the log. The final line reports tables copied, rows transferred, and elapsed time.
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.
 
@@ -272,6 +276,7 @@ PostgresCopy refuses to act when something looks wrong:
 - **Non-empty destination.** Append-into-existing is refused; you must explicitly opt into `--truncate-destination`.
 - **Truncate confirmation.** CLI requires `--yes` or an interactive confirmation. The GUI requires the truncate checkbox and a warning confirmation before the copy starts.
 - **Credentials.** Passwords are redacted in every log line. Connection strings are never written to disk.
+- **History.** Desktop history stores redacted run metadata only; it does not store reusable passwords or passphrases.
 
 Stack traces are hidden behind `--verbose` so accidental log capture doesn't leak internals.
 

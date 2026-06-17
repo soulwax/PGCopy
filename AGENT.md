@@ -10,7 +10,8 @@ PostgresCopy should stay dead simple: open the desktop `.exe`, paste two Postgre
 
 1. Read `AGENTS.md`.
 2. Read `TODO.md`.
-3. Check `git status --short --untracked-files=all`.
+3. Read `TODO_POLISHING.md` when the task is about history, saved runs, credentials, or desktop polish.
+4. Check `git status --short --untracked-files=all`.
 
 ## While Editing
 
@@ -45,10 +46,12 @@ This environment has **.NET 10 only** — `net9.0` and below are unavailable. Sc
 
 The app is close to v1-complete. Prefer finishing touches over new product surface:
 
-- desktop `.exe` polish, app icon, and published smoke-check notes
-- first-run/preflight clarity for `pg_dump`, `psql`, Docker, and SSH config
-- `--schema-only` / `--data-only` CLI flags
-- redacted copy report export from the desktop operations log
+- reusable desktop history/recipe polish that stores redacted metadata only by default
+- opt-in stronger verification beyond row counts
 - easier Docker integration diagnostics
+- CLI progress polish that mirrors the desktop operations log
+- decide whether `--batch-size` should become real behavior or be removed
 
-Do not add stored credentials, a local web UI, non-PostgreSQL engines, ORM layers, background services, or cloud-specific workflow branches.
+Current desktop history is local JSON under `%LOCALAPPDATA%\PostgresCopy\history.json`, capped at 200 entries, and stores redacted connection strings only. It does not refill the form, rerun a copy, or store usable secrets yet.
+
+Do not add stored credentials, a local web UI, non-PostgreSQL engines, ORM layers, background services, or cloud-specific workflow branches. If credential convenience is explicitly requested, first record a decision and prefer Windows Credential Manager or DPAPI over files or reusable hashes.

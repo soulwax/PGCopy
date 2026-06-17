@@ -83,6 +83,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add elapsed-time summaries to shared dry-run/copy/schema-only completion logs.
 - [x] Add publish scripts for single-file builds.
 - Consider implementing `--batch-size` or removing it — the flag is parsed and validated but the binary COPY path does not batch; either wire it up or drop the flag and the README note to avoid confusion.
+- See `TODO_POLISHING.md` for optional desktop polish ideas around reusable history, saved recipes, credential-vault design, and stronger verification.
 
 ## Not Planned
 
