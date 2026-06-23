@@ -71,7 +71,7 @@ Expected native GUI controls:
 - dry run button
 - truncate destination with warning confirmation
 - drop destination schema first with warning confirmation
-- verify counts
+- verify and repair counts
 - create destination schema
 - SSH tunnel configuration
 - copy button

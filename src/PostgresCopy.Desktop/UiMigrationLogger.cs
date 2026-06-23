@@ -14,7 +14,7 @@ public sealed class UiMigrationLogger(Action<string> write) : IMigrationLogger
     public void Plan(MigrationPlan plan)
     {
         var truncate = plan.TruncateDestination ? " Destination tables will be truncated first." : string.Empty;
-        var verify = plan.Verify ? " Row counts will be verified." : string.Empty;
+        var verify = plan.Verify ? " Row counts will be verified and mismatches repaired." : string.Empty;
         write($"Plan: {plan.Tables.Count} table(s) in schema {plan.Schema}.{truncate}{verify}");
 
         foreach (var table in plan.Tables)

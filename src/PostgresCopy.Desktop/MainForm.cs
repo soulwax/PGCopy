@@ -423,14 +423,15 @@ public sealed class MainForm : Form
 
     private Control BuildOptionsPanel()
     {
-        var panel = new FlowLayoutPanel
+        var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            WrapContents = true,
+            ColumnCount = 1,
             BackColor = SurfaceBackColor,
             Padding = new Padding(0, 2, 0, 0),
         };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         createSchemaCheckBox.Text = "Create destination schema";
         createSchemaCheckBox.AutoSize = true;
@@ -444,12 +445,12 @@ public sealed class MainForm : Form
         SetHelp(createSchemaCheckBox,
             "Copies table definitions, indexes, sequences, and constraints from origin to destination before data checks. Recommended for an empty destination database. Requires pg_dump and psql.");
 
-        verifyCheckBox.Text = "Verify counts";
+        verifyCheckBox.Text = "Verify and repair counts";
         verifyCheckBox.Checked = true;
         verifyCheckBox.AutoSize = true;
         StyleCheckBox(verifyCheckBox);
         SetHelp(verifyCheckBox,
-            "After a real copy, compare row counts between origin and destination. This is a quick sanity check, not a full checksum.");
+            "After a real copy, compare row counts between origin and destination. If a table mismatches, PostgresCopy clears and recopies that destination table plus planned dependent tables, then verifies again.");
 
         truncateCheckBox.Text = "Truncate destination";
         truncateCheckBox.AutoSize = true;
@@ -465,11 +466,19 @@ public sealed class MainForm : Form
         SetHelp(dropSchemaCheckBox,
             "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
 
-        panel.Controls.Add(createSchemaCheckBox);
-        panel.Controls.Add(verifyCheckBox);
-        panel.Controls.Add(truncateCheckBox);
-        panel.Controls.Add(dropSchemaCheckBox);
+        AddOptionCheckBox(panel, createSchemaCheckBox);
+        AddOptionCheckBox(panel, verifyCheckBox);
+        AddOptionCheckBox(panel, truncateCheckBox);
+        AddOptionCheckBox(panel, dropSchemaCheckBox);
         return panel;
+    }
+
+    private static void AddOptionCheckBox(TableLayoutPanel panel, CheckBox checkBox)
+    {
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        checkBox.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        panel.Controls.Add(checkBox, 0, row);
     }
 
     // ── Peek tab ───────────────────────────────────────────────────────────────

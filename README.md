@@ -63,7 +63,7 @@ dotnet run --project src/PostgresCopy -- `
 
 ## What It Is
 
-PostgresCopy is a small, focused Windows desktop utility that copies the contents of one PostgreSQL database into another. You paste two connection strings into one window; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies row counts when it's done.
+PostgresCopy is a small, focused Windows desktop utility that copies the contents of one PostgreSQL database into another. You paste two connection strings into one window; it shows you a plan, optionally rebuilds the destination schema from the origin, copies the data using PostgreSQL's binary `COPY` protocol, and verifies and repairs row counts when it's done.
 
 It is deliberately *not* a generic ETL framework. It does one thing — clone a Postgres database — and tries to do that without surprises.
 
@@ -80,7 +80,7 @@ Both share the same migration core, so copy behavior is kept consistent.
 - **SSH tunneling** for databases reachable only through a jump host, with auto-population from `~/.ssh/config`.
 - **Dry-run by default** — every workflow starts with a no-op preview.
 - **Foreign-key-aware ordering** — parent tables copy before children.
-- **Row-count verification** with `--verify`.
+- **Row-count verification** with `--verify`, including bounded repair retries for mismatched tables.
 - **Sequence sync** — identity/serial sequences are realigned after copy so new inserts don't collide.
 - **Truncate gate** — destination truncation requires an explicit checkbox and warning confirmation before rows are deleted.
 - **Clear diagnostics** — invalid URLs call out missing hosts, missing database names, bad ports, fragments, unsupported schemes, malformed schemes, and common password-encoding problems.
@@ -133,7 +133,7 @@ This is the default manual workflow. The desktop window has five tabs (**Connect
 | **Destination URL** | Same shape, must point to a *different* database. |
 | **Schema** | Defaults to `public`. |
 | **Tables** | Optional, comma-separated. Empty = all base tables in the schema. |
-| **Verify counts** | Compares origin and destination row counts after the copy. |
+| **Verify and repair counts** | Compares origin and destination row counts after the copy. If a table mismatches, PostgresCopy clears and recopies that destination table plus planned dependent tables, then verifies again. |
 | **Truncate destination** | Empties planned destination tables before copying (shows a warning confirmation before deleting rows). |
 | **Create destination schema** | Copies DDL from origin to destination via `pg_dump \| psql` *before* opening data connections. Recommended for empty destination databases. |
 | **Drop destination schema first (DESTRUCTIVE)** | When schema creation is enabled, drops and recreates the destination schema before applying origin DDL. Shows a separate warning confirmation. |
@@ -188,7 +188,7 @@ The tunnel is established before the migration starts and torn down in `finally`
 4. Paste both URLs.
 5. Click **Dry run**. Read the operations log carefully.
 6. *(Replacing existing data?)* Check **Truncate destination** and confirm the warning when you start the copy.
-7. Keep **Verify counts** checked and click **Copy**.
+7. Keep **Verify and repair counts** checked and click **Copy**.
 8. Watch the log. The final line reports tables copied, rows transferred, and elapsed time.
 
 The **Cancel** button stops an in-flight migration cleanly via `CancellationToken`. The **Save log** button exports the visible, redacted operations log as a text or Markdown file.
@@ -223,7 +223,7 @@ dotnet run --project src/PostgresCopy -- `
 | `--dry-run` | Print the plan, validate, report counts — but copy nothing. |
 | `--truncate-destination` | Empty destination tables before copying. |
 | `--yes` | Skip the interactive `TRUNCATE` confirmation (for scripts). |
-| `--verify` | Compare origin and destination row counts after the copy. |
+| `--verify` | Compare origin and destination row counts after the copy. Mismatched tables are cleared, recopied, and verified again up to a bounded retry limit. |
 | `--batch-size <n>` | Reserved for future use. Defaults to 10000. |
 | `--verbose` | Print stack traces for unexpected failures. |
 | `--help` | Show the built-in help. |
@@ -238,7 +238,7 @@ dotnet run --project src/PostgresCopy -- `
     --verify
 ```
 
-Exit code is non-zero on any failure, validation error, or count mismatch.
+Exit code is non-zero on any failure, validation error, or row-count mismatch that remains after repair retries.
 
 ---
 
@@ -261,7 +261,7 @@ Exit code is non-zero on any failure, validation error, or count mismatch.
 │      c. Stream-pipe between the two                           │
 │      d. Log progress per table                                │
 │ 10. Realign sequences on destination                          │
-│ 11. (Verify?) Compare row counts; fail on mismatch            │
+│ 11. (Verify?) Compare row counts; repair mismatches, retry    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -615,7 +615,7 @@ Pre-launch build tasks (`build desktop`, `build cli`) build the relevant project
 | `Npgsql.PostgresException: 3D000: database "..." does not exist` | Database name in URL is wrong or hasn't been created | Create it first: `createdb -h localhost -U postgres dbname` |
 | `Npgsql.PostgresException: 42710: schema "public" already exists` | Destination already has a schema when `--create-schema` is used | Add `--drop-schema` to rebuild from origin, or use `--data-only` if schema already matches |
 | `Npgsql.PostgresException: 42P01: relation "..." does not exist` | Schema mismatch between origin and destination | Ensure destination has all tables with matching columns before `--data-only` |
-| `Verification failed: row count mismatch` | Data was not fully copied or destination had existing rows | Add `--truncate-destination` to clear the destination before copying |
+| `Verification failed: row count mismatch` | Counts still differed after PostgresCopy retried mismatched tables | Check for triggers, concurrent writes, failed repair logs, or a destination database modified during the copy |
 | `dotnet run --` arguments are ignored | Missing `--` separator before app arguments | Must be: `dotnet run --project src/PostgresCopy -- --dry-run` (note the space before `--dry-run`) |
 | `No tables selected` | Schema is empty or table filter matches nothing | Run with `--dry-run` to see the plan, or check `--schema` and `--tables` values |
 | `Relative path not found: tools\pg_dump.exe` | Published exe can't find bundled tools | The executable looks for a `tools\` directory next to itself. Run from within the artifact folder or bundle via `bundle-pg-tools.ps1` |

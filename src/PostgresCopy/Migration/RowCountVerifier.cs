@@ -12,8 +12,19 @@ public sealed class RowCountVerifier(
 {
     public async Task VerifyAsync(MigrationPlan plan, CancellationToken cancellationToken)
     {
+        var mismatches = await FindMismatchesAsync(plan, cancellationToken);
+        if (mismatches.Count > 0)
+        {
+            throw new VerificationException(BuildFailureMessage(mismatches));
+        }
+    }
+
+    public async Task<IReadOnlyList<RowCountMismatch>> FindMismatchesAsync(
+        MigrationPlan plan,
+        CancellationToken cancellationToken)
+    {
         logger.Step("Verifying row counts");
-        var errors = new List<string>();
+        var mismatches = new List<RowCountMismatch>();
 
         foreach (var tablePlan in plan.Tables)
         {
@@ -26,14 +37,22 @@ public sealed class RowCountVerifier(
                 continue;
             }
 
-            errors.Add($"{tablePlan.QualifiedName}: origin has {originCount}, destination has {destinationCount}.");
+            logger.Info($"{tablePlan.QualifiedName}: origin has {originCount}, destination has {destinationCount}; repair needed.");
+            mismatches.Add(new RowCountMismatch(tablePlan, originCount, destinationCount));
         }
 
-        if (errors.Count > 0)
+        if (mismatches.Count == 0)
         {
-            throw new VerificationException("Row-count verification failed:" + Environment.NewLine + string.Join(Environment.NewLine, errors));
+            logger.Success("Row-count verification passed.");
         }
 
-        logger.Success("Row-count verification passed.");
+        return mismatches;
+    }
+
+    public static string BuildFailureMessage(IReadOnlyList<RowCountMismatch> mismatches)
+    {
+        var errors = mismatches.Select(mismatch =>
+            $"{mismatch.QualifiedName}: origin has {mismatch.OriginRows}, destination has {mismatch.DestinationRows}.");
+        return "Row-count verification failed:" + Environment.NewLine + string.Join(Environment.NewLine, errors);
     }
 }

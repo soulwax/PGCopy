@@ -20,7 +20,7 @@ public sealed class ConsoleMigrationLogger : IMigrationLogger
         Console.WriteLine($"Schema: {plan.Schema}");
         Console.WriteLine($"Mode:   {(plan.DryRun ? "dry run" : "copy data")}");
         Console.WriteLine($"Truncate destination: {(plan.TruncateDestination ? "yes" : "no")}");
-        Console.WriteLine($"Verify row counts: {(plan.Verify ? "yes" : "no")}");
+        Console.WriteLine($"Verify row counts: {(plan.Verify ? "yes, repair mismatches" : "no")}");
         Console.WriteLine($"Tables: {plan.Tables.Count}");
 
         foreach (var table in plan.Tables)
