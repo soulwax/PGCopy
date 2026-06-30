@@ -129,7 +129,9 @@ public sealed class MigrationRunner(IMigrationLogger logger)
 
         if (settings.Verify)
         {
-            await new RowCountVerifier(origin, destination, logger).VerifyAsync(plan, cancellationToken);
+            var repairResult = await new RowCountVerificationRepairer(origin, destination, logger)
+                .VerifyAndRepairAsync(plan, dependencies, cancellationToken);
+            result = result.Add(repairResult);
         }
 
         logger.Success($"Copied {result.TablesCopied} table(s), {result.RowsCopied} row(s) in {FormatElapsed(totalElapsed.Elapsed)}.");

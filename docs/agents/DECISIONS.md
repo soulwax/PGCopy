@@ -121,3 +121,15 @@ Reason: the typed confirmation was clumsy in the one-window flow. The safety bou
 The desktop app keeps a durable History tab for successful dry runs, successful copies, failures, and cancellations. Entries are stored as JSON under `%LOCALAPPDATA%\PostgresCopy\history.json` for the current Windows profile only. Raw connection strings are not stored; history uses the same redacted connection string representation as the operations log.
 
 Reason: users need memory of what they tried and what completed without turning PostgresCopy into a hosted dashboard or credential store. Local-only, redacted history preserves the privacy promise while making repeat manual work more visible.
+
+## 2026-06-17: Polish Backlog Does Not Override Credential Safety
+
+`TODO_POLISHING.md` is an idea backlog for making the desktop app feel more reusable and powerful: saved recipes, richer history, stronger verification, and local convenience. It is deliberately exploratory. The current implemented product still does not store raw connection strings, database passwords, SSH passwords, or SSH key passphrases.
+
+Reason: repeat-run convenience is useful, but password/passphrase hashes cannot be used to reconnect to PostgreSQL or unlock SSH keys. They can only fingerprint or verify that the same secret was typed again. Any future no-retyping credential feature must be an explicit product/security decision, documented here, and should use an OS-backed vault such as Windows Credential Manager or DPAPI with clear opt-in and deletion controls.
+
+## 2026-06-23: Row-Count Mismatches Use Bounded Repair
+
+When `--verify` finds row-count mismatches after a copy, the migration core now clears and recopies the mismatched destination tables, plus planned dependent tables, then verifies again. The repair loop is bounded so an actively changing origin or destination still fails clearly instead of running forever.
+
+Reason: a live origin can change between the first table copy and final verification. Retrying only the affected table set keeps the destination fresher without turning PostgresCopy into an upsert/conflict-resolution engine.

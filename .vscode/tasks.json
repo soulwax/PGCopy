@@ -109,6 +109,14 @@
       "type": "shell",
       "command": "./scripts/publish-cli.ps1",
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dist",
+      "type": "shell",
+      "command": "./scripts/dist.ps1",
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "detail": "Run checks, publish desktop and CLI binaries, smoke-check desktop, and create distribution archives."
     }
   ]
 }

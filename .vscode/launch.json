@@ -41,6 +41,14 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal"
+    },
+    {
+      "name": "PostgresCopy Dist",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${workspaceFolder}/scripts/dist.ps1",
+      "args": [],
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

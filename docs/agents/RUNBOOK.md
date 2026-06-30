@@ -83,6 +83,7 @@ Expected native GUI controls:
 - origin database URL
 - destination database URL
 - preflight check button
+- get pg tools button and pg tools status
 - peek database URL
 - peek database button
 - history tab with successful and failed/cancelled runs separated
@@ -90,7 +91,8 @@ Expected native GUI controls:
 - tables
 - dry run button
 - truncate destination with warning confirmation
-- verify counts
+- drop destination schema first with warning confirmation
+- verify and repair counts
 - create destination schema
 - SSH tunnel configuration
 - copy button
@@ -98,7 +100,7 @@ Expected native GUI controls:
 - save log
 - operations log
 
-For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, peek tab, history tab, dry run button, copy button, cancel path, SSH tab, save-log path, and operations log.
+For GUI changes, verify the header/logo, app/window icon, origin field, destination field, preflight tab, get-pg-tools state, peek tab, history tab, dry run button, copy button, cancel path, SSH tab, save-log path, and operations log.
 The operations log uses colored whole-line severity for errors, warnings, steps, successes, active work, table data, and guidance lines; saved logs remain plain text.
 
 ## CLI Smoke Checks
@@ -143,11 +145,14 @@ The script should:
 ## Publish
 
 ```powershell
+.\scripts\dist.ps1
 .\scripts\publish-desktop.ps1
 .\scripts\publish-cli.ps1
 ```
 
-Outputs go under `artifacts/`, which is ignored by git.
+Use `dist.ps1` for binary distribution: it runs the standard non-Docker checks, publishes desktop and CLI artifacts, smoke-checks the desktop artifact, creates zip archives under `artifacts\dist`, and writes `SHA256SUMS.txt`.
+
+The lower-level publish scripts are still useful when iterating on one artifact. Outputs go under `artifacts/`, which is ignored by git.
 
 ## PostgreSQL Client Tools
 

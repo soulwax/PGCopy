@@ -30,7 +30,8 @@ public static class CliOptionsParser
           --data-only             Copy table data only. Destination schema must already match.
           --dry-run               Print the plan without copying data.
           --truncate-destination  Empty planned destination tables before copying.
-          --verify                Compare origin and destination row counts after copying.
+          --verify                Compare row counts after copying; repair mismatched
+                                  tables with bounded retries.
           --yes                   Skip confirmation for destructive actions.
           --verbose               Show stack traces for unexpected failures.
           --help                  Show help.
