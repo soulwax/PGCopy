@@ -356,6 +356,24 @@ Convenience launchers for the published builds:
 .\Start-PostgresCopy-Desktop-Published.cmd
 ```
 
+### Lightweight per-user install
+
+Install the published desktop app without an MSI or admin rights:
+
+```powershell
+.\scripts\install-desktop.ps1
+```
+
+This copies the desktop `.exe` and its clean uninstaller to `%LOCALAPPDATA%\Programs\PostgresCopy`, creates a Start Menu shortcut, and registers a per-user uninstall entry under Windows **Installed apps**.
+
+Uninstall from Windows **Installed apps**, or run:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\PostgresCopy\Uninstall-PostgresCopy.ps1"
+```
+
+Uninstall removes the installed app folder, Start Menu shortcut, uninstall registry entry, and local PostgresCopy data under `%LOCALAPPDATA%\PostgresCopy` including history.
+
 ## Known Limits
 
 - Destination schema is either copied via `--create-schema`, `--schema-only`, or `pg_dump` *or* must already exist for `--data-only`.

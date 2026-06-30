@@ -57,6 +57,27 @@ Run the published `.exe`:
 .\Start-PostgresCopy-Desktop-Published.cmd
 ```
 
+Install the published desktop app per-user:
+
+```powershell
+.\scripts\install-desktop.ps1
+```
+
+Expected install effects:
+
+- `%LOCALAPPDATA%\Programs\PostgresCopy\PostgresCopy.Desktop.exe`
+- `%LOCALAPPDATA%\Programs\PostgresCopy\Uninstall-PostgresCopy.ps1`
+- `%APPDATA%\Microsoft\Windows\Start Menu\Programs\PostgresCopy.lnk`
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\PostgresCopy`
+
+Uninstall via Windows Installed apps or:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\PostgresCopy\Uninstall-PostgresCopy.ps1"
+```
+
+The uninstaller removes the app folder, Start Menu shortcut, uninstall entry, and `%LOCALAPPDATA%\PostgresCopy` local history/data.
+
 Expected native GUI controls:
 
 - origin database URL

@@ -8,6 +8,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
   - [x] app/window icon
   - [x] first-run sizing and header spacing
   - [x] published `.exe` smoke check notes
+  - [x] lightweight per-user install/uninstall script
   - [x] local preflight tab for pg_dump, psql, Docker, and SSH config readiness
 - [x] Add destination preflight checks before copying:
   - [x] destination table exists
@@ -36,6 +37,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Do not store credentials or run a background service.
 - [x] Add source and published desktop launchers.
 - [x] Add a desktop publish script.
+- [x] Add a lightweight per-user installer with Start Menu shortcut and clean uninstall.
 - [x] Add a published desktop smoke-check script.
 - [x] Keep the Connection tab log scrollable and retain the latest six operation sessions.
 - [x] Replace typed GUI truncate confirmation with a clearer warning confirmation.

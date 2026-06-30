@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Stop-Process -Id 29188 -Force -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"stopped\")",
+      "PowerShell(Stop-Process -Id 29188 -Force -ErrorAction SilentlyContinue)",
+      "Bash(dotnet add *)",
+      "PowerShell(Stop-Process -Id 45732 -Force -ErrorAction SilentlyContinue)",
+      "Bash(git -C \"D:\\\\Workspace\\\\C#\\\\PostgresCopy\" diff cee28cd..2ed5aef --name-only)",
+      "Bash(git -C \"D:\\\\Workspace\\\\C#\\\\PostgresCopy\" log cee28cd..2ed5aef --oneline)"
+    ]
+  }
+}
