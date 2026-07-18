@@ -56,6 +56,10 @@ public static class DestinationDatabaseLifecycle
                 await connection.OpenAsync(cancellationToken);
                 return (true, null);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception)
             {
                 // Try the next candidate maintenance database.
