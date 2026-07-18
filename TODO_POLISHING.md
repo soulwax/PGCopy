@@ -36,6 +36,11 @@ This file is exploratory. It is not permission to store secrets, add a backgroun
 - [ ] Add "Copy report" and "Save report" actions for Markdown/JSON summaries.
 - [ ] Detect repeated failures for the same recipe and surface the latest likely cause without hiding the raw log.
 
+## Copy All Databases Follow-Ups
+
+- [ ] Extend the whole-server overwrite feature (see `docs/superpowers/plans/2026-07-18-copy-all-databases.md`) from "public schema only" per database to true multi-schema enumeration (loop `information_schema.schemata`, excluding `pg_catalog`/`information_schema`/`pg_toast%`, per database).
+- [ ] Consider a `--all-databases` CLI dry-run JSONL/summary mode consistent with any future CLI progress polish.
+
 ## Updateable Past Copies
 
 - [ ] Add a "Refresh destination" workflow for a saved recipe: dry-run first, show destination row counts and schema drift, then allow Copy with existing confirmations.
