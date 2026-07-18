@@ -2,7 +2,8 @@
 
 param(
     [string]$Runtime = "win-x64",
-    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA "Programs\PostgresCopy")
+    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA "Programs\PostgresCopy"),
+    [string]$AppSource
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,17 +12,29 @@ if ($env:OS -ne "Windows_NT") {
     throw "The desktop installer is Windows-only."
 }
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$publishDir = Join-Path $root "artifacts\PostgresCopy-desktop-$Runtime"
-$appSource = Join-Path $publishDir "PostgresCopy.Desktop.exe"
-
-if (-not (Test-Path $appSource)) {
-    Write-Host "Published desktop app not found. Publishing first..."
-    & (Join-Path $root "scripts\publish-desktop.ps1") -Runtime $Runtime
+# -AppSource lets a standalone package (e.g. the NSIS installer, which stages
+# this script next to the built exe with no repo/scripts folder around it)
+# point directly at the exe to install, skipping the repo-relative lookup
+# and self-publish fallback below entirely.
+if ($AppSource) {
+    $appSource = $AppSource
+    if (-not (Test-Path -LiteralPath $appSource)) {
+        throw "Specified -AppSource does not exist: $appSource"
+    }
 }
+else {
+    $root = Resolve-Path (Join-Path $PSScriptRoot "..")
+    $publishDir = Join-Path $root "artifacts\PostgresCopy-desktop-$Runtime"
+    $appSource = Join-Path $publishDir "PostgresCopy.Desktop.exe"
 
-if (-not (Test-Path $appSource)) {
-    throw "Published desktop app not found at $appSource."
+    if (-not (Test-Path $appSource)) {
+        Write-Host "Published desktop app not found. Publishing first..."
+        & (Join-Path $root "scripts\publish-desktop.ps1") -Runtime $Runtime
+    }
+
+    if (-not (Test-Path $appSource)) {
+        throw "Published desktop app not found at $appSource."
+    }
 }
 
 $installDirFull = [System.IO.Path]::GetFullPath($InstallDir)
