@@ -35,7 +35,7 @@ public sealed class UiMigrationLogger(Action<string> write) : IMigrationLogger
     public void DatabaseStart(string databaseName) => write($"Database: {databaseName}");
 
     public void DatabaseDone(string databaseName, TimeSpan elapsed) =>
-        write($"Database {databaseName} done in {elapsed.TotalSeconds:0.0}s");
+        write($"Copied database {databaseName} in {elapsed.TotalSeconds:0.0}s");
 
     public void DatabaseFailed(string databaseName, string message) =>
         write($"ERROR Failed database {databaseName}: {message}");
