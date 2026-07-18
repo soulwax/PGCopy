@@ -1,5 +1,14 @@
 # Release Notes
 
+## 0.2.0
+
+### Added
+
+- **Copy all databases** (`--all-databases` / `--exclude-database` CLI flags, matching desktop UI): enumerates every non-system database on the origin server and drops, recreates, and copies each same-named database on the destination. Public schema only in this release; requires typed `OVERWRITE` confirmation (or `--yes` for scripts) since it is the most destructive operation in the tool.
+- CLI-only publish script for Linux and macOS (`scripts/publish-cli.sh`) — the desktop app remains Windows-only.
+
+See [CHANGELOG.md](CHANGELOG.md) for the detailed, chronological list of changes going forward.
+
 ## 0.1.0
 
 First usable PostgresCopy build, centered on the native desktop `.exe` with a scriptable CLI companion.

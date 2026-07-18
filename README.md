@@ -754,4 +754,4 @@ GPLv3.0 — see [LICENSE.md](LICENSE.md).
 
 ## Release
 
-Current version: **0.1.0** — see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Current version: **0.2.0** — see [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
