@@ -16,4 +16,9 @@ public sealed record CliOptions(
     bool CreateSchema,
     bool SchemaOnly,
     bool DataOnly,
-    bool DropSchema = false);
+    bool DropSchema = false,
+    bool AllDatabases = false,
+    IReadOnlyList<string>? ExcludeDatabasesRaw = null)
+{
+    public IReadOnlyList<string> ExcludeDatabases => ExcludeDatabasesRaw ?? [];
+}

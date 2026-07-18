@@ -34,6 +34,13 @@ public static class CliOptionsParser
                                   tables with bounded retries.
           --yes                   Skip confirmation for destructive actions.
           --verbose               Show stack traces for unexpected failures.
+          --all-databases         DESTRUCTIVE. Copy every database on the origin server,
+                                  dropping and recreating each matching database on the
+                                  destination server. Cannot be combined with --schema,
+                                  --table/--tables, --schema-only, --data-only,
+                                  --create-schema, --drop-schema, or --truncate-destination.
+          --exclude-database <name>  Skip this database when using --all-databases. May be
+                                  passed more than once.
           --help                  Show help.
         """;
 
@@ -58,6 +65,8 @@ public static class CliOptionsParser
         var schemaOnly = false;
         var dataOnly = false;
         var dropSchema = false;
+        var allDatabases = false;
+        var excludeDatabases = new List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -148,6 +157,17 @@ public static class CliOptionsParser
                 case "--yes":
                     yes = true;
                     break;
+                case "--all-databases":
+                    allDatabases = true;
+                    break;
+                case "--exclude-database":
+                    if (!TryReadValue(args, ref i, arg, out var excludeDatabase, out var excludeDatabaseError))
+                    {
+                        return CliParseResult.Failed(excludeDatabaseError);
+                    }
+
+                    excludeDatabases.Add(excludeDatabase);
+                    break;
                 case "--drop-and-recreate":
                     return CliParseResult.Failed($"{arg} is destructive and is not implemented yet.");
                 default:
@@ -205,6 +225,41 @@ public static class CliOptionsParser
             return CliParseResult.Failed("--drop-schema requires --create-schema (or --schema-only). Dropping without recreating would leave the destination empty.");
         }
 
+        if (allDatabases && !string.Equals(schema, "public", StringComparison.Ordinal))
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --schema because it copies every schema in every database.");
+        }
+
+        if (allDatabases && tables.Count > 0)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --table/--tables because it copies every table in every database.");
+        }
+
+        if (allDatabases && schemaOnly)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --schema-only.");
+        }
+
+        if (allDatabases && dataOnly)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --data-only.");
+        }
+
+        if (allDatabases && createSchema)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --create-schema because schema creation always runs in this mode.");
+        }
+
+        if (allDatabases && dropSchema)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --drop-schema because whole databases are dropped, not schemas.");
+        }
+
+        if (allDatabases && truncateDestination)
+        {
+            return CliParseResult.Failed("--all-databases cannot be combined with --truncate-destination because destination databases are dropped and recreated, not truncated.");
+        }
+
         return CliParseResult.Parsed(new CliOptions(
             origin,
             destination,
@@ -219,7 +274,9 @@ public static class CliOptionsParser
             createSchema || schemaOnly,
             schemaOnly,
             dataOnly,
-            dropSchema));
+            dropSchema,
+            allDatabases,
+            excludeDatabases));
     }
 
     private static bool TryReadValue(

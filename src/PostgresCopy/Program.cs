@@ -3,6 +3,7 @@
 using Npgsql;
 using PostgresCopy.Cli;
 using PostgresCopy.Config;
+using PostgresCopy.Database;
 using PostgresCopy.Logging;
 using PostgresCopy.Migration;
 
@@ -33,7 +34,54 @@ try
         return ExitCodes.ValidationFailure;
     }
 
-    var settings = MigrationSettingsValidator.Validate(parseResult.Options!);
+    var options = parseResult.Options!;
+
+    if (options.AllDatabases)
+    {
+        var allDatabasesOrigin = PostgresConnectionString.Parse(options.Origin);
+        var allDatabasesDestination = PostgresConnectionString.Parse(options.Destination);
+
+        if (allDatabasesOrigin.ComparisonKey.Equals(allDatabasesDestination.ComparisonKey, StringComparison.Ordinal))
+        {
+            throw new ValidationException("Origin and destination point to the same database. Refusing to continue.");
+        }
+
+        var allDatabasesSettings = new AllDatabasesMigrationSettings(
+            allDatabasesOrigin.ConnectionString,
+            allDatabasesDestination.ConnectionString,
+            options.ExcludeDatabases,
+            options.DryRun,
+            options.Verify,
+            options.Yes,
+            options.BatchSize,
+            options.Verbose);
+
+        bool allDatabasesConfirmed;
+        if (options.DryRun)
+        {
+            allDatabasesConfirmed = true;
+        }
+        else
+        {
+            var maintenanceConnectionString = PostgresConnectionString.WithDatabase(
+                allDatabasesOrigin.ConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
+            await using var probeConnection = new NpgsqlConnection(maintenanceConnectionString);
+            await probeConnection.OpenAsync(cancellation.Token);
+            var allDatabaseNames = await DestinationDatabaseLifecycle.ListDatabasesAsync(probeConnection, cancellation.Token);
+            var selectedNames = AllDatabasesMigrationRunner.FilterSelectedDatabases(allDatabaseNames, options.ExcludeDatabases);
+            allDatabasesConfirmed = DestructiveActionPrompt.ConfirmOverwriteAllDatabases(selectedNames, options.Yes);
+        }
+
+        var allDatabasesSummary = await new AllDatabasesMigrationRunner(console).RunAsync(
+            allDatabasesSettings,
+            allDatabasesConfirmed,
+            cancellation.Token);
+
+        console.Info($"Completed {allDatabasesSummary.TotalDatabases} database(s): {allDatabasesSummary.Succeeded} succeeded, {allDatabasesSummary.Failed} failed.");
+        return allDatabasesSummary.Failed == 0 ? ExitCodes.Success : ExitCodes.MigrationFailure;
+    }
+
+    var settings = MigrationSettingsValidator.Validate(options);
 
     var truncateOk = !settings.TruncateDestination
         || DestructiveActionPrompt.ConfirmTruncateDestination(settings.Yes);
