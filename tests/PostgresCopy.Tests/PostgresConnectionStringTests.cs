@@ -219,4 +219,53 @@ public sealed class PostgresConnectionStringTests
         var ex = Assert.Throws<ValidationException>(() => MigrationSettingsValidator.Validate(options));
         Assert.Contains("same database", ex.Message);
     }
+
+    [Fact]
+    public void RequireSsl_sets_sslmode_require_when_unset()
+    {
+        var result = PostgresConnectionString.RequireSsl("postgres://user:secret@localhost:5432/app");
+
+        Assert.Contains("SSL Mode=Require", result);
+    }
+
+    [Fact]
+    public void RequireSsl_raises_weaker_sslmode_to_require()
+    {
+        var result = PostgresConnectionString.RequireSsl("postgres://user:secret@localhost:5432/app?sslmode=disable");
+
+        Assert.Contains("SSL Mode=Require", result);
+    }
+
+    [Fact]
+    public void RequireSsl_does_not_downgrade_stronger_sslmode()
+    {
+        var result = PostgresConnectionString.RequireSsl("postgres://user:secret@localhost:5432/app?sslmode=verify-full");
+
+        Assert.Contains("SSL Mode=VerifyFull", result);
+    }
+
+    [Fact]
+    public void RequireSsl_preserves_host_and_database()
+    {
+        var result = PostgresConnectionString.RequireSsl("postgres://user:secret@localhost:5432/app");
+
+        Assert.Contains("Host=localhost", result);
+        Assert.Contains("Database=app", result);
+    }
+
+    [Fact]
+    public void Parse_accepts_hyphenated_sslmode_verify_full()
+    {
+        var endpoint = PostgresConnectionString.Parse("postgres://user:secret@localhost:5432/app?sslmode=verify-full");
+
+        Assert.Contains("SSL Mode=VerifyFull", endpoint.ConnectionString);
+    }
+
+    [Fact]
+    public void Parse_accepts_hyphenated_sslmode_verify_ca()
+    {
+        var endpoint = PostgresConnectionString.Parse("postgres://user:secret@localhost:5432/app?sslmode=verify-ca");
+
+        Assert.Contains("SSL Mode=VerifyCA", endpoint.ConnectionString);
+    }
 }

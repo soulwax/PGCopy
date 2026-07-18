@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.3.0
+
+### Added
+
+- **SSL required by default**: origin and destination connections now force `sslmode=require` unless opted out (`--no-origin-require-ssl` / `--no-destination-require-ssl` on the CLI, "Require SSL" checkboxes on the desktop Connection tab). Never downgrades a stricter mode already in the connection string.
+- **`--all-databases` accepts a database-less URL**: the database name is no longer required in Origin/Destination for whole-server copies, since it's discarded and replaced per database anyway.
+- **Per-user NSIS installer** for the Windows desktop app (`PostgresCopy-Setup-<version>.exe`), no admin rights required.
+
+See [CHANGELOG.md](CHANGELOG.md) for the detailed, chronological list of changes going forward.
+
 ## 0.2.0
 
 ### Added

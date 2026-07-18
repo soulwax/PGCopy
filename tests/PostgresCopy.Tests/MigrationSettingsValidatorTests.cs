@@ -117,4 +117,34 @@ public sealed class MigrationSettingsValidatorTests
         Assert.True(settings.Verify);
         Assert.True(settings.TruncateDestination);
     }
+
+    [Fact]
+    public void Validate_requires_ssl_on_both_endpoints_by_default()
+    {
+        var options = ValidOptions(
+            origin: "Host=origin;Database=db",
+            dest: "Host=dest;Database=db");
+
+        var settings = MigrationSettingsValidator.Validate(options);
+
+        Assert.Contains("SSL Mode=Require", settings.Origin.ConnectionString);
+        Assert.Contains("SSL Mode=Require", settings.Destination.ConnectionString);
+    }
+
+    [Fact]
+    public void Validate_does_not_require_ssl_when_opted_out_per_endpoint()
+    {
+        var options = ValidOptions(
+            origin: "Host=origin;Database=db",
+            dest: "Host=dest;Database=db") with
+        {
+            OriginRequireSsl = false,
+            DestinationRequireSsl = false,
+        };
+
+        var settings = MigrationSettingsValidator.Validate(options);
+
+        Assert.DoesNotContain("SSL Mode=Require", settings.Origin.ConnectionString);
+        Assert.DoesNotContain("SSL Mode=Require", settings.Destination.ConnectionString);
+    }
 }

@@ -133,3 +133,17 @@ Reason: repeat-run convenience is useful, but password/passphrase hashes cannot 
 When `--verify` finds row-count mismatches after a copy, the migration core now clears and recopies the mismatched destination tables, plus planned dependent tables, then verifies again. The repair loop is bounded so an actively changing origin or destination still fails clearly instead of running forever.
 
 Reason: a live origin can change between the first table copy and final verification. Retrying only the affected table set keeps the destination fresher without turning PostgresCopy into an upsert/conflict-resolution engine.
+
+## 2026-07-18: SSL Required By Default, Opt-Out Per Endpoint
+
+Both origin and destination connections force `sslmode=require` by default (`PostgresConnectionString.RequireSsl`), applied in `MigrationSettingsValidator.Validate` and in the `--all-databases` path in `Program.cs`/`MainForm.cs`. This only ever raises the SSL requirement — a connection string that already specifies a stricter mode (`verify-ca`, `verify-full`) is left untouched, never downgraded. Opting out is per-endpoint: CLI `--no-origin-require-ssl`/`--no-destination-require-ssl`, desktop "Require SSL" checkboxes next to the Origin URL and Destination URL fields, both checked by default.
+
+Reason: PostgresCopy moves potentially sensitive data (and always moves credentials) over the network; encryption should be the default, not something a user has to remember to add. `sslmode=require` (not `verify-full`) was chosen as the default floor because it works against self-signed certificates common in local/Docker Postgres and most managed providers' default certs, without requiring a CA-trust configuration this tool does not yet expose in its UI.
+
+While implementing this, found and fixed a pre-existing bug: PostgreSQL URL query-parameter parsing rejected the standard hyphenated `sslmode=verify-ca`/`sslmode=verify-full` spellings that the tool's own error message told users to use (Npgsql's connection-string indexer only accepts the non-hyphenated enum names `VerifyCA`/`VerifyFull`). `PostgresConnectionString` now normalizes the hyphenated spellings before handing them to Npgsql.
+
+## 2026-07-18: `--all-databases` Allows a Database-less URL
+
+`--origin`/`--destination` no longer require a database name in the URL when `--all-databases` is set (CLI and desktop both switched from `PostgresConnectionString.Parse` to `PostgresConnectionString.ParseForInspection` on this path). Single-database mode is unchanged and still requires one.
+
+Reason: `AllDatabasesMigrationRunner` already discards whatever database name is present in the origin/destination connection strings and substitutes the real per-iteration database name via `PostgresConnectionString.WithDatabase`. Requiring a database name that gets thrown away was pure friction with no safety benefit — same-server protection was already handled separately by `AllDatabasesMigrationRunner.SameServer` (host+port comparison), not by requiring/comparing a database name.

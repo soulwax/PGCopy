@@ -33,6 +33,8 @@ public sealed class MainForm : Form
     // Connection tab
     private readonly TextBox originTextBox = new();
     private readonly TextBox destinationTextBox = new();
+    private readonly CheckBox originRequireSslCheckBox = new();
+    private readonly CheckBox destinationRequireSslCheckBox = new();
     private readonly TextBox schemaTextBox = new();
     private readonly TextBox tablesTextBox = new();
     private readonly CheckBox verifyCheckBox = new();
@@ -405,6 +407,20 @@ public sealed class MainForm : Form
         originTextBox.TextChanged += (_, _) => SyncConnectionText(originTextBox, sshOriginTextBox);
         destinationTextBox.TextChanged += (_, _) => SyncConnectionText(destinationTextBox, sshDestinationTextBox);
 
+        originRequireSslCheckBox.Text = "Require SSL";
+        originRequireSslCheckBox.Checked = true;
+        originRequireSslCheckBox.AutoSize = true;
+        StyleCheckBox(originRequireSslCheckBox);
+        SetHelp(originRequireSslCheckBox,
+            "Forces sslmode=require on the origin connection, rejecting a plaintext connection. Does not verify the server's certificate. Uncheck only if the origin server does not support SSL.");
+
+        destinationRequireSslCheckBox.Text = "Require SSL";
+        destinationRequireSslCheckBox.Checked = true;
+        destinationRequireSslCheckBox.AutoSize = true;
+        StyleCheckBox(destinationRequireSslCheckBox);
+        SetHelp(destinationRequireSslCheckBox,
+            "Forces sslmode=require on the destination connection, rejecting a plaintext connection. Does not verify the server's certificate. Uncheck only if the destination server does not support SSL.");
+
         schemaTextBox.Text = "public";
         schemaTextBox.PlaceholderText = "public";
         StyleTextBox(schemaTextBox);
@@ -412,9 +428,25 @@ public sealed class MainForm : Form
         tablesTextBox.PlaceholderText = "optional: users,orders,products";
         StyleTextBox(tablesTextBox);
 
-        AddRow(panel, "Origin URL", originTextBox,
+        var originRow = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true, BackColor = SurfaceBackColor };
+        originRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        originRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        originTextBox.Dock = DockStyle.Fill;
+        originRequireSslCheckBox.Margin = new Padding(10, 8, 0, 0);
+        originRow.Controls.Add(originTextBox, 0, 0);
+        originRow.Controls.Add(originRequireSslCheckBox, 1, 0);
+
+        var destinationRow = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true, BackColor = SurfaceBackColor };
+        destinationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        destinationRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        destinationTextBox.Dock = DockStyle.Fill;
+        destinationRequireSslCheckBox.Margin = new Padding(10, 8, 0, 0);
+        destinationRow.Controls.Add(destinationTextBox, 0, 0);
+        destinationRow.Controls.Add(destinationRequireSslCheckBox, 1, 0);
+
+        AddRow(panel, "Origin URL", originRow,
             "The source PostgreSQL database. PostgresCopy reads schema and rows from here and never modifies it.");
-        AddRow(panel, "Destination URL", destinationTextBox,
+        AddRow(panel, "Destination URL", destinationRow,
             "The target PostgreSQL database. Copy operations write here, so double-check this is not the same database as origin.");
         AddRow(panel, "Schema", schemaTextBox,
             "The PostgreSQL schema to copy. Most databases use public unless your tables live in a named schema.");
@@ -814,9 +846,12 @@ public sealed class MainForm : Form
 
         try
         {
-            var origin = PostgresConnectionString.Parse(originTextBox.Text.Trim());
+            var originInfo = PostgresConnectionString.ParseForInspection(originTextBox.Text.Trim());
+            var originConnectionString = originRequireSslCheckBox.Checked
+                ? PostgresConnectionString.RequireSsl(originInfo.ConnectionString)
+                : originInfo.ConnectionString;
             var maintenanceConnectionString = PostgresConnectionString.WithDatabase(
-                origin.ConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
+                originConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
 
             await using var connection = new NpgsqlConnection(maintenanceConnectionString);
             await connection.OpenAsync(activeRun.Token);
@@ -1965,13 +2000,20 @@ public sealed class MainForm : Form
 
         try
         {
-            var origin = PostgresConnectionString.Parse(originTextBox.Text.Trim());
-            var destination = PostgresConnectionString.Parse(destinationTextBox.Text.Trim());
+            // ParseForInspection allows a missing database name — irrelevant
+            // here since AllDatabasesMigrationRunner swaps in the real
+            // database name per iteration anyway. Same-server protection is
+            // enforced inside AllDatabasesMigrationRunner.RunAsync
+            // (AllDatabasesMigrationRunner.SameServer), not here.
+            var originInfo = PostgresConnectionString.ParseForInspection(originTextBox.Text.Trim());
+            var destinationInfo = PostgresConnectionString.ParseForInspection(destinationTextBox.Text.Trim());
 
-            if (origin.ComparisonKey.Equals(destination.ComparisonKey, StringComparison.Ordinal))
-            {
-                throw new ValidationException("Origin and destination point to the same database. Refusing to continue.");
-            }
+            var originConnectionString = originRequireSslCheckBox.Checked
+                ? PostgresConnectionString.RequireSsl(originInfo.ConnectionString)
+                : originInfo.ConnectionString;
+            var destinationConnectionString = destinationRequireSslCheckBox.Checked
+                ? PostgresConnectionString.RequireSsl(destinationInfo.ConnectionString)
+                : destinationInfo.ConnectionString;
 
             var excludeDatabases = DestinationDatabaseLifecycle.ExcludedDatabaseNames
                 .Concat(allDatabasesChecklist.Items.Cast<string>()
@@ -1979,8 +2021,8 @@ public sealed class MainForm : Form
                 .ToList();
 
             var settings = new AllDatabasesMigrationSettings(
-                origin.ConnectionString,
-                destination.ConnectionString,
+                originConnectionString,
+                destinationConnectionString,
                 excludeDatabases,
                 isDryRun,
                 verifyCheckBox.Checked,
@@ -2070,7 +2112,9 @@ public sealed class MainForm : Form
             createSchemaCheckBox.Checked,
             false,
             false,
-            dropSchemaCheckBox.Checked && createSchemaCheckBox.Checked);
+            dropSchemaCheckBox.Checked && createSchemaCheckBox.Checked,
+            OriginRequireSsl: originRequireSslCheckBox.Checked,
+            DestinationRequireSsl: destinationRequireSslCheckBox.Checked);
 
         return MigrationSettingsValidator.Validate(options);
     }
@@ -2543,6 +2587,8 @@ public sealed class MainForm : Form
     {
         originTextBox.Enabled = !running;
         destinationTextBox.Enabled = !running;
+        originRequireSslCheckBox.Enabled = !running;
+        destinationRequireSslCheckBox.Enabled = !running;
         schemaTextBox.Enabled = !running;
         tablesTextBox.Enabled = !running;
         verifyCheckBox.Enabled = !running;

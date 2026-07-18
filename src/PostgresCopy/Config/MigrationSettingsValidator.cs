@@ -8,8 +8,15 @@ public static class MigrationSettingsValidator
 {
     public static MigrationSettings Validate(CliOptions options)
     {
-        var origin = PostgresConnectionString.Parse(options.Origin);
-        var destination = PostgresConnectionString.Parse(options.Destination);
+        var originConnectionString = options.OriginRequireSsl
+            ? PostgresConnectionString.RequireSsl(options.Origin)
+            : options.Origin;
+        var destinationConnectionString = options.DestinationRequireSsl
+            ? PostgresConnectionString.RequireSsl(options.Destination)
+            : options.Destination;
+
+        var origin = PostgresConnectionString.Parse(originConnectionString);
+        var destination = PostgresConnectionString.Parse(destinationConnectionString);
 
         if (origin.ComparisonKey.Equals(destination.ComparisonKey, StringComparison.Ordinal))
         {

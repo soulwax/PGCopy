@@ -67,6 +67,9 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Add `--create-schema` to copy schema from origin via pg_dump before data transfer.
 - [x] Add `--schema-only` and `--data-only` CLI flags.
 - [x] Copy all databases on an origin server to a destination server with whole-database overwrite (`--all-databases` / `--exclude-database` CLI flags and matching desktop UI).
+- [x] `--all-databases` accepts an origin/destination URL without a database name.
+- [x] Require SSL by default on both origin and destination connections, opt-out per endpoint (`--no-origin-require-ssl` / `--no-destination-require-ssl`, matching desktop checkboxes).
+- [x] Per-user NSIS installer for the Windows desktop app.
 
 ## SSH Tunnel
 

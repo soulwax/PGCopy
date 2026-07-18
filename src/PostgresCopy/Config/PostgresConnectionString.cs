@@ -130,6 +130,22 @@ public static class PostgresConnectionString
         return builder.ConnectionString;
     }
 
+    // Forces SslMode=Require onto a connection string. Never downgrades an
+    // already-stricter setting the user typed (e.g. VerifyFull) — Require is
+    // only raised, never lowered, since Npgsql's SslMode enum is ordered from
+    // weakest (Disable) to strongest (VerifyFull) and this only bumps values
+    // below Require up to it.
+    public static string RequireSsl(string connectionStringOrUrl)
+    {
+        var builder = ParseBuilder(connectionStringOrUrl, allowMissingDatabase: true);
+        if (builder.SslMode < SslMode.Require)
+        {
+            builder.SslMode = SslMode.Require;
+        }
+
+        return builder.ConnectionString;
+    }
+
     private static NpgsqlConnectionStringBuilder ParseBuilder(string value, bool allowMissingDatabase)
     {
         if (LooksLikeMalformedPostgresUrl(value))
@@ -272,7 +288,7 @@ public static class PostgresConnectionString
         {
             try
             {
-                builder[key] = valuePart;
+                builder[key] = NormalizeQueryParamValue(key, valuePart);
             }
             catch (ArgumentException ex)
             {
@@ -284,6 +300,27 @@ public static class PostgresConnectionString
         }
 
         return builder;
+    }
+
+    // Accepts the standard libpq/psql sslmode spellings (disable, allow,
+    // prefer, require, verify-ca, verify-full) even though Npgsql's own
+    // NpgsqlConnectionStringBuilder indexer only accepts its enum member
+    // names (VerifyCA, VerifyFull) for the two hyphenated values — without
+    // this translation, following this tool's own error-message advice
+    // ("Use one of: ... verify-ca, verify-full") would fail.
+    private static string NormalizeQueryParamValue(string key, string value)
+    {
+        if (!key.Equals("sslmode", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        return value.ToLowerInvariant() switch
+        {
+            "verify-ca" => "VerifyCA",
+            "verify-full" => "VerifyFull",
+            _ => value,
+        };
     }
 
     private static string BuildQueryParamHint(string key, string value)

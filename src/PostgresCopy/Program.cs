@@ -38,17 +38,24 @@ try
 
     if (options.AllDatabases)
     {
-        var allDatabasesOrigin = PostgresConnectionString.Parse(options.Origin);
-        var allDatabasesDestination = PostgresConnectionString.Parse(options.Destination);
+        // ParseForInspection allows a missing database name — irrelevant here
+        // since AllDatabasesMigrationRunner swaps in the real database name
+        // per iteration anyway (see PostgresConnectionString.WithDatabase).
+        // Same-server protection is enforced inside AllDatabasesMigrationRunner.RunAsync
+        // (AllDatabasesMigrationRunner.SameServer), not here.
+        var allDatabasesOriginInfo = PostgresConnectionString.ParseForInspection(options.Origin);
+        var allDatabasesDestinationInfo = PostgresConnectionString.ParseForInspection(options.Destination);
 
-        if (allDatabasesOrigin.ComparisonKey.Equals(allDatabasesDestination.ComparisonKey, StringComparison.Ordinal))
-        {
-            throw new ValidationException("Origin and destination point to the same database. Refusing to continue.");
-        }
+        var allDatabasesOriginConnectionString = options.OriginRequireSsl
+            ? PostgresConnectionString.RequireSsl(allDatabasesOriginInfo.ConnectionString)
+            : allDatabasesOriginInfo.ConnectionString;
+        var allDatabasesDestinationConnectionString = options.DestinationRequireSsl
+            ? PostgresConnectionString.RequireSsl(allDatabasesDestinationInfo.ConnectionString)
+            : allDatabasesDestinationInfo.ConnectionString;
 
         var allDatabasesSettings = new AllDatabasesMigrationSettings(
-            allDatabasesOrigin.ConnectionString,
-            allDatabasesDestination.ConnectionString,
+            allDatabasesOriginConnectionString,
+            allDatabasesDestinationConnectionString,
             options.ExcludeDatabases,
             options.DryRun,
             options.Verify,
@@ -64,7 +71,7 @@ try
         else
         {
             var maintenanceConnectionString = PostgresConnectionString.WithDatabase(
-                allDatabasesOrigin.ConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
+                allDatabasesOriginConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
             await using var probeConnection = new NpgsqlConnection(maintenanceConnectionString);
             await probeConnection.OpenAsync(cancellation.Token);
             var allDatabaseNames = await DestinationDatabaseLifecycle.ListDatabasesAsync(probeConnection, cancellation.Token);

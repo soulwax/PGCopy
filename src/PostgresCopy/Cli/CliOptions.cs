@@ -18,7 +18,9 @@ public sealed record CliOptions(
     bool DataOnly,
     bool DropSchema = false,
     bool AllDatabases = false,
-    IReadOnlyList<string>? ExcludeDatabasesRaw = null)
+    IReadOnlyList<string>? ExcludeDatabasesRaw = null,
+    bool OriginRequireSsl = true,
+    bool DestinationRequireSsl = true)
 {
     public IReadOnlyList<string> ExcludeDatabases => ExcludeDatabasesRaw ?? [];
 }

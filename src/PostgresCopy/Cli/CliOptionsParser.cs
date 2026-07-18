@@ -39,8 +39,14 @@ public static class CliOptionsParser
                                   destination server. Cannot be combined with --schema,
                                   --table/--tables, --schema-only, --data-only,
                                   --create-schema, --drop-schema, or --truncate-destination.
+                                  --origin/--destination do not need a database name in
+                                  this mode (e.g. postgres://user:pass@host:5432).
           --exclude-database <name>  Skip this database when using --all-databases. May be
                                   passed more than once.
+          --no-origin-require-ssl       Do not force sslmode=require on the origin connection.
+                                  SSL is required by default; this opts out for that endpoint.
+          --no-destination-require-ssl  Do not force sslmode=require on the destination
+                                  connection. SSL is required by default; this opts out.
           --help                  Show help.
         """;
 
@@ -67,6 +73,8 @@ public static class CliOptionsParser
         var dropSchema = false;
         var allDatabases = false;
         var excludeDatabases = new List<string>();
+        var originRequireSsl = true;
+        var destinationRequireSsl = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -167,6 +175,12 @@ public static class CliOptionsParser
                     }
 
                     excludeDatabases.Add(excludeDatabase);
+                    break;
+                case "--no-origin-require-ssl":
+                    originRequireSsl = false;
+                    break;
+                case "--no-destination-require-ssl":
+                    destinationRequireSsl = false;
                     break;
                 case "--drop-and-recreate":
                     return CliParseResult.Failed($"{arg} is destructive and is not implemented yet.");
@@ -276,7 +290,9 @@ public static class CliOptionsParser
             dataOnly,
             dropSchema,
             allDatabases,
-            excludeDatabases));
+            excludeDatabases,
+            originRequireSsl,
+            destinationRequireSsl));
     }
 
     private static bool TryReadValue(

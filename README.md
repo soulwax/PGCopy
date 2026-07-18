@@ -224,11 +224,26 @@ dotnet run --project src/PostgresCopy -- `
 | `--truncate-destination` | Empty destination tables before copying. |
 | `--yes` | Skip the interactive `TRUNCATE` confirmation (for scripts). |
 | `--verify` | Compare origin and destination row counts after the copy. Mismatched tables are cleared, recopied, and verified again up to a bounded retry limit. |
-| `--all-databases` | Copy all non-system databases from origin to destination (DESTRUCTIVE). Drops and recreates each destination database. Cannot be combined with `--schema`, `--table`/`--tables`, `--schema-only`, `--data-only`, `--create-schema`, `--drop-schema`, or `--truncate-destination`. Requires typing `OVERWRITE` at the confirmation prompt (or `--yes` non-interactively). |
+| `--all-databases` | Copy all non-system databases from origin to destination (DESTRUCTIVE). Drops and recreates each destination database. Cannot be combined with `--schema`, `--table`/`--tables`, `--schema-only`, `--data-only`, `--create-schema`, `--drop-schema`, or `--truncate-destination`. Requires typing `OVERWRITE` at the confirmation prompt (or `--yes` non-interactively). `--origin`/`--destination` do not need a database name in this mode. |
 | `--exclude-database <name>` | Skip this database when using `--all-databases`. May be passed multiple times. |
+| `--no-origin-require-ssl` | Do not force `sslmode=require` on the origin connection. SSL is required by default (see below). |
+| `--no-destination-require-ssl` | Do not force `sslmode=require` on the destination connection. SSL is required by default (see below). |
 | `--batch-size <n>` | Reserved for future use. Defaults to 10000. |
 | `--verbose` | Print stack traces for unexpected failures. |
 | `--help` | Show the built-in help. |
+
+### SSL is required by default
+
+PostgresCopy forces `sslmode=require` on both the origin and destination connections by default — it will refuse a plaintext connection, though it does not verify the server's certificate (no CA trust configuration). This only ever *raises* the SSL requirement: if your connection string already specifies a stricter mode (`verify-ca`, `verify-full`), that is preserved rather than downgraded.
+
+If a server genuinely does not support SSL (e.g. some local/Docker Postgres setups), opt out per endpoint:
+
+```powershell
+--no-origin-require-ssl
+--no-destination-require-ssl
+```
+
+The desktop app has a matching "Require SSL" checkbox next to each of the Origin URL and Destination URL fields, checked by default.
 
 ### Copy all databases (destructive mode)
 
@@ -754,4 +769,4 @@ GPLv3.0 — see [LICENSE.md](LICENSE.md).
 
 ## Release
 
-Current version: **0.2.0** — see [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Current version: **0.3.0** — see [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).

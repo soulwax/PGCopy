@@ -214,4 +214,45 @@ public sealed class CliOptionsParserTests
         Assert.False(result.Success);
         Assert.Contains("destructive", result.ErrorMessage);
     }
+
+    [Fact]
+    public void Parse_defaults_require_ssl_to_true_for_both_endpoints()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.OriginRequireSsl);
+        Assert.True(result.Options.DestinationRequireSsl);
+    }
+
+    [Fact]
+    public void Parse_no_origin_require_ssl_disables_only_origin()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--no-origin-require-ssl",
+        ]);
+
+        Assert.True(result.Success);
+        Assert.False(result.Options!.OriginRequireSsl);
+        Assert.True(result.Options.DestinationRequireSsl);
+    }
+
+    [Fact]
+    public void Parse_no_destination_require_ssl_disables_only_destination()
+    {
+        var result = CliOptionsParser.Parse([
+            "--origin", "Host=origin;Database=db",
+            "--destination", "Host=dest;Database=db",
+            "--no-destination-require-ssl",
+        ]);
+
+        Assert.True(result.Success);
+        Assert.True(result.Options!.OriginRequireSsl);
+        Assert.False(result.Options.DestinationRequireSsl);
+    }
 }
