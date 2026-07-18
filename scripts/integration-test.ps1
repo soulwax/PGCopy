@@ -278,6 +278,10 @@ try {
         Write-Host ""
         Write-Host "Running --all-databases scenario..."
 
+        if (-not (Test-PgToolsAvailable)) {
+            throw "pg_dump and psql are required for the --all-databases scenario. Add them to PATH or run .\scripts\update-pg-tools.ps1 first."
+        }
+
         # Spin up a dedicated pair of containers: origin has three databases
         # (pgcopy, app_one, app_two); destination starts with only pgcopy.
         docker compose -f $multiComposeFile up -d
