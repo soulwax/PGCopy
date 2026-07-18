@@ -66,6 +66,7 @@ Keep PostgresCopy small: one tool, one job, clear output.
 - [x] Keep schema copying separate from data copying.
 - [x] Add `--create-schema` to copy schema from origin via pg_dump before data transfer.
 - [x] Add `--schema-only` and `--data-only` CLI flags.
+- [x] Copy all databases on an origin server to a destination server with whole-database overwrite (`--all-databases` / `--exclude-database` CLI flags and matching desktop UI).
 
 ## SSH Tunnel
 
