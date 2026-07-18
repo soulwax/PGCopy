@@ -142,15 +142,21 @@ public sealed class AllDatabasesMigrationRunner(IMigrationLogger logger)
         foreach (var candidate in new[] { DestinationDatabaseLifecycle.DefaultMaintenanceDatabase, "template1" })
         {
             var candidateConnectionString = PostgresConnectionString.WithDatabase(destinationConnectionString, candidate);
+            var connection = new NpgsqlConnection(candidateConnectionString);
             try
             {
-                var connection = new NpgsqlConnection(candidateConnectionString);
                 await connection.OpenAsync(cancellationToken);
                 return connection;
+            }
+            catch (OperationCanceledException)
+            {
+                await connection.DisposeAsync();
+                throw;
             }
             catch (Exception)
             {
                 // Try the next candidate.
+                await connection.DisposeAsync();
             }
         }
 
