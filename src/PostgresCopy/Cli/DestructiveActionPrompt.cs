@@ -42,4 +42,29 @@ public static class DestructiveActionPrompt
 
         return string.Equals(response, "DROP", StringComparison.Ordinal);
     }
+
+    public static bool ConfirmOverwriteAllDatabases(IReadOnlyList<string> databaseNames, bool yes)
+    {
+        if (yes)
+        {
+            return true;
+        }
+
+        if (Console.IsInputRedirected)
+        {
+            return false;
+        }
+
+        Console.WriteLine("This will DROP and recreate the following destination databases:");
+        foreach (var name in databaseNames)
+        {
+            Console.WriteLine($"  {name}");
+        }
+        Console.WriteLine("Any other active connections to these databases will be forcibly terminated.");
+        Console.WriteLine("All tables, indexes, sequences, functions, views, triggers, and data in each database will be permanently deleted before being recreated from origin.");
+        Console.Write("Type OVERWRITE to continue: ");
+        var response = Console.ReadLine();
+
+        return string.Equals(response, "OVERWRITE", StringComparison.Ordinal);
+    }
 }
