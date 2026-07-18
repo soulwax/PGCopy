@@ -48,6 +48,21 @@ public sealed class ConsoleMigrationLogger : IMigrationLogger
         Error($"Failed {tableName}: {message}");
     }
 
+    public void DatabaseStart(string databaseName)
+    {
+        Console.WriteLine($"Database: {databaseName}");
+    }
+
+    public void DatabaseDone(string databaseName, TimeSpan elapsed)
+    {
+        Console.WriteLine($"Database {databaseName} done in {elapsed.TotalSeconds:0.0}s.");
+    }
+
+    public void DatabaseFailed(string databaseName, string message)
+    {
+        Error($"Failed database {databaseName}: {message}");
+    }
+
     public void Success(string message)
     {
         var previousColor = Console.ForegroundColor;

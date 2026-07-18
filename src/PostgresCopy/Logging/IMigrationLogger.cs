@@ -12,6 +12,9 @@ public interface IMigrationLogger
     void TableStart(string tableName, long rows);
     void TableDone(string tableName, long rows, TimeSpan elapsed);
     void TableFailed(string tableName, string message);
+    void DatabaseStart(string databaseName);
+    void DatabaseDone(string databaseName, TimeSpan elapsed);
+    void DatabaseFailed(string databaseName, string message);
     void Success(string message);
     void Error(string message);
 }
