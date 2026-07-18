@@ -100,6 +100,21 @@ public static class PostgresConnectionString
 
     public static string Redact(string value) => Parse(value).RedactedConnectionString;
 
+    public static string WithDatabase(string connectionStringOrUrl, string databaseName)
+    {
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            throw new ValidationException(
+                "Database name cannot be empty." + Environment.NewLine +
+                "What happened: PostgresCopy tried to build a connection string for a specific database, but no database name was provided." + Environment.NewLine +
+                "How to resolve: this is an internal error; please report it with the steps that led here.");
+        }
+
+        var builder = ParseBuilder(connectionStringOrUrl, allowMissingDatabase: true);
+        builder.Database = databaseName;
+        return builder.ConnectionString;
+    }
+
     private static NpgsqlConnectionStringBuilder ParseBuilder(string value, bool allowMissingDatabase)
     {
         if (LooksLikeMalformedPostgresUrl(value))
