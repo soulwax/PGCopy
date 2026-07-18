@@ -227,12 +227,12 @@ public static class CliOptionsParser
 
         if (allDatabases && !string.Equals(schema, "public", StringComparison.Ordinal))
         {
-            return CliParseResult.Failed("--all-databases cannot be combined with --schema because it copies every schema in every database.");
+            return CliParseResult.Failed("--all-databases cannot be combined with --schema because it always copies the public schema of every database.");
         }
 
         if (allDatabases && tables.Count > 0)
         {
-            return CliParseResult.Failed("--all-databases cannot be combined with --table/--tables because it copies every table in every database.");
+            return CliParseResult.Failed("--all-databases cannot be combined with --table/--tables because it copies every table in the public schema of every database.");
         }
 
         if (allDatabases && schemaOnly)
