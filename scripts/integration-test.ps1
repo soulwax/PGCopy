@@ -7,7 +7,13 @@ param(
     # Also run the --drop-schema scenario: destination starts with a dirty/wrong
     # schema; PostgresCopy must drop it, rebuild from origin DDL, then copy data.
     # Requires pg_dump and psql on PATH (or in the bundled tools\ directory).
-    [switch]$DropSchema
+    [switch]$DropSchema,
+
+    # Also run the --all-databases scenario: origin has three databases
+    # (pgcopy, app_one, app_two); destination starts with only pgcopy and no
+    # app_one/app_two. PostgresCopy must create the missing destination
+    # databases and overwrite pgcopy, copying schema+data for all three.
+    [switch]$AllDatabases
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,9 +21,12 @@ $ErrorActionPreference = "Stop"
 $root             = Resolve-Path (Join-Path $PSScriptRoot "..")
 $composeFile      = Join-Path $root "tests/integration/docker-compose.yml"
 $dirtyComposeFile = Join-Path $root "tests/integration/docker-compose-dirty.yml"
+$multiComposeFile = Join-Path $root "tests/integration/docker-compose-multi.yml"
 $originUrl        = "postgres://postgres:test@localhost:55432/pgcopy"
 $destinationUrl   = "postgres://postgres:test@localhost:55433/pgcopy"
 $dirtyDestUrl     = "postgres://postgres:test@localhost:55434/pgcopy"
+$multiOriginUrl      = "postgres://postgres:test@localhost:55442/pgcopy"
+$multiDestinationUrl = "postgres://postgres:test@localhost:55443/pgcopy"
 
 function Test-IntegrationPrerequisites {
     $ok = $true
@@ -118,6 +127,35 @@ function Read-Columns {
     param([string]$ContainerName, [string]$Table)
     docker exec $ContainerName psql -U postgres -d pgcopy -Atc `
         "select column_name from information_schema.columns where table_schema='public' and table_name='$Table' order by ordinal_position;"
+}
+
+function Wait-ForPostgresDatabase {
+    param(
+        [string]$ContainerName,
+        [string]$DatabaseName
+    )
+
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        docker exec $ContainerName pg_isready -U postgres -d $DatabaseName | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    throw "Timed out waiting for database '$DatabaseName' on $ContainerName."
+}
+
+function Read-RowCount {
+    param(
+        [string]$ContainerName,
+        [string]$DatabaseName,
+        [string]$Table
+    )
+
+    docker exec $ContainerName psql -U postgres -d $DatabaseName -Atc `
+        "select count(*) from $Table;"
 }
 
 function Test-PgToolsAvailable {
@@ -234,12 +272,64 @@ try {
         Write-Host "Integration --drop-schema scenario passed."
         Write-Host ($dirtyCounts -join "`n")
     }
+
+    # ── All-databases scenario ──────────────────────────────────────────────────
+    if ($AllDatabases) {
+        Write-Host ""
+        Write-Host "Running --all-databases scenario..."
+
+        # Spin up a dedicated pair of containers: origin has three databases
+        # (pgcopy, app_one, app_two); destination starts with only pgcopy.
+        docker compose -f $multiComposeFile up -d
+        if ($LASTEXITCODE -ne 0) { throw "docker compose up failed for multi-database scenario." }
+
+        Wait-ForPostgres "pgcopy-origin-multi"
+        Wait-ForPostgres "pgcopy-destination-multi"
+        Wait-ForPostgresDatabase "pgcopy-origin-multi" "app_one"
+        Wait-ForPostgresDatabase "pgcopy-origin-multi" "app_two"
+
+        dotnet run --project src/PostgresCopy -- `
+            --origin      $multiOriginUrl `
+            --destination $multiDestinationUrl `
+            --all-databases `
+            --yes `
+            --verify
+        if ($LASTEXITCODE -ne 0) { throw "--all-databases run failed." }
+
+        # Verify app_one/app_two were created on the destination from scratch
+        # and copied with the correct row counts.
+        $widgetsCount = Read-RowCount "pgcopy-destination-multi" "app_one" "public.widgets"
+        $gadgetsCount = Read-RowCount "pgcopy-destination-multi" "app_two" "public.gadgets"
+
+        if ($widgetsCount -ne "3") {
+            throw "Expected 3 rows in app_one.public.widgets on destination, found: $widgetsCount"
+        }
+        if ($gadgetsCount -ne "2") {
+            throw "Expected 2 rows in app_two.public.gadgets on destination, found: $gadgetsCount"
+        }
+        Write-Host "Confirmed: app_one.public.widgets=3, app_two.public.gadgets=2 on destination."
+
+        # Verify the pre-existing pgcopy database was also overwritten (it is
+        # not a system database and was not excluded) and matches origin.
+        $multiOriginCounts      = Read-Counts "pgcopy-origin-multi"
+        $multiDestinationCounts = Read-Counts "pgcopy-destination-multi"
+
+        if (($multiOriginCounts -join "`n") -ne ($multiDestinationCounts -join "`n")) {
+            Write-Error "Row counts did not match for pgcopy database.`nOrigin:`n$multiOriginCounts`nDestination:`n$multiDestinationCounts"
+        }
+        Write-Host "Confirmed: pgcopy database (accounts/orders) matches origin after --all-databases."
+
+        Write-Host "Integration --all-databases scenario passed."
+    }
 }
 finally {
     if (-not $Check -and -not $KeepContainers) {
         docker compose -f $composeFile down --volumes --remove-orphans
         if (Test-Path $dirtyComposeFile) {
             docker compose -f $dirtyComposeFile down --volumes --remove-orphans
+        }
+        if (Test-Path $multiComposeFile) {
+            docker compose -f $multiComposeFile down --volumes --remove-orphans
         }
     }
 

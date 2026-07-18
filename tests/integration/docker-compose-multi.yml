@@ -1,0 +1,30 @@
+# File: tests/integration/docker-compose-multi.yml
+#
+# Multi-database scenario for --all-databases. Origin starts with three
+# databases (pgcopy, app_one, app_two) seeded via origin.sql and
+# origin-multi-init.sql. Destination starts with only the default pgcopy
+# database and no app_one/app_two — this proves --all-databases creates
+# the missing destination databases from scratch rather than assuming
+# they already exist.
+
+services:
+  origin-multi:
+    image: postgres:17-alpine
+    container_name: pgcopy-origin-multi
+    environment:
+      POSTGRES_DB: pgcopy
+      POSTGRES_PASSWORD: test
+    ports:
+      - "55442:5432"
+    volumes:
+      - ./origin.sql:/docker-entrypoint-initdb.d/001-origin.sql:ro
+      - ./origin-multi-init.sql:/docker-entrypoint-initdb.d/002-origin-multi-init.sql:ro
+
+  destination-multi:
+    image: postgres:17-alpine
+    container_name: pgcopy-destination-multi
+    environment:
+      POSTGRES_DB: pgcopy
+      POSTGRES_PASSWORD: test
+    ports:
+      - "55443:5432"
