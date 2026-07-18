@@ -537,6 +537,48 @@ Options:
 .\scripts\dist.ps1 -Runtime win-arm64  # target ARM64
 ```
 
+#### CLI-only distribution on Linux / macOS
+
+The desktop app is Windows-only (WinForms, `net10.0-windows`) — there is no Linux or macOS build of it. The CLI (`src/PostgresCopy`) is OS-agnostic and can be published on Linux/macOS with `scripts/publish-cli.sh`:
+
+```bash
+./scripts/publish-cli.sh                 # auto-detects linux-x64 / osx-x64 / osx-arm64
+./scripts/publish-cli.sh linux-arm64      # explicit runtime identifier
+./scripts/publish-cli.sh osx-arm64 Debug  # explicit runtime + configuration
+```
+
+This mirrors `publish-cli.ps1`: a self-contained, single-file, compressed executable written to `artifacts/PostgresCopy-cli-<runtime>/PostgresCopy`. There is no `dist.sh` equivalent to `dist.ps1` — no desktop artifact exists to bundle alongside it, and no Linux/macOS integration/smoke-check tooling exists yet for the CLI (the existing `check.ps1`/`integration-test.ps1`/smoke scripts are PowerShell-only). Run `dotnet test tests/PostgresCopy.Tests/PostgresCopy.Tests.csproj` manually first if you want unit-test coverage before publishing on these platforms.
+
+### Cutting a release (maintainer checklist)
+
+1. **Land all changes on `main`** and confirm a clean working tree (`git status`).
+2. **Update version and changelog:**
+   - Bump the version in both `src/PostgresCopy/PostgresCopy.csproj` and `src/PostgresCopy.Desktop/PostgresCopy.Desktop.csproj` (`<Version>`/`<AssemblyVersion>` properties).
+   - Add an entry to [RELEASE_NOTES.md](RELEASE_NOTES.md) and update the "Current version" line under [Release](#release) below.
+3. **Run the full pre-flight check** (build + unit tests + CLI smoke, no publishing yet):
+   ```powershell
+   .\scripts\check.ps1
+   .\scripts\check.ps1 -IncludeIntegration   # optional, requires Docker
+   ```
+4. **Build the Windows distribution:**
+   ```powershell
+   .\scripts\dist.ps1
+   ```
+   This re-runs the same checks as step 3 (skip with `-SkipChecks` only if you just ran them), then publishes and zips both the desktop `.exe` and CLI `.exe`, and writes `artifacts\dist\SHA256SUMS.txt`.
+5. **(Optional) Build the Linux/macOS CLI artifact** on a machine with the corresponding OS, or via a CI runner targeting it — this repository's own dev environment is Windows, so this step cannot be exercised from here:
+   ```bash
+   ./scripts/publish-cli.sh linux-x64
+   ./scripts/publish-cli.sh osx-arm64
+   ```
+   Compute checksums for these manually (e.g. `shasum -a 256 artifacts/PostgresCopy-cli-linux-x64/PostgresCopy`) and append them to the same `SHA256SUMS.txt` convention if distributing alongside the Windows artifacts.
+6. **Smoke-test the published desktop build** (already covered by `dist.ps1`'s default smoke check, or run standalone):
+   ```powershell
+   .\scripts\smoke-published-desktop.ps1 -Launch
+   ```
+   Manually verify: origin/destination fields, dry-run/copy button text, cancel path, SSH tab, and — after this branch — the Connection tab's "Copy all databases" checkbox, database checklist, and typed-`OVERWRITE` confirmation dialog.
+7. **Tag the release** in git (`git tag vX.Y.Z && git push --tags`) once the artifacts are verified.
+8. **Attach artifacts to the release**: `artifacts\dist\PostgresCopy-desktop-win-x64.zip`, `artifacts\dist\PostgresCopy-cli-win-x64.zip`, `artifacts\dist\SHA256SUMS.txt`, plus any Linux/macOS CLI archives built in step 5.
+
 ### Lightweight per-user install
 
 Install the published desktop app without an MSI or admin rights:
