@@ -145,6 +145,60 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void BuildServerComparisonKey_matches_same_host_and_port_with_different_database()
+    {
+        var keyA = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@host:5432/dbA");
+        var keyB = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@host:5432/dbB");
+
+        Assert.Equal(keyA, keyB);
+    }
+
+    [Fact]
+    public void BuildServerComparisonKey_differs_for_different_hosts()
+    {
+        var keyA = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@hostA:5432/db");
+        var keyB = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@hostB:5432/db");
+
+        Assert.NotEqual(keyA, keyB);
+    }
+
+    [Fact]
+    public void BuildServerComparisonKey_differs_for_different_ports_on_same_host()
+    {
+        var keyA = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@host:5432/db");
+        var keyB = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@host:5433/db");
+
+        Assert.NotEqual(keyA, keyB);
+    }
+
+    [Fact]
+    public void BuildServerComparisonKey_ignores_password_and_works_without_database()
+    {
+        var keyA = PostgresConnectionString.BuildServerComparisonKey("postgres://u:secret1@host:5432");
+        var keyB = PostgresConnectionString.BuildServerComparisonKey("postgres://u:secret2@host:5432/db");
+
+        Assert.Equal(keyA, keyB);
+    }
+
+    [Fact]
+    public void BuildServerComparisonKey_is_case_insensitive_for_host()
+    {
+        var keyA = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@HOST:5432/db");
+        var keyB = PostgresConnectionString.BuildServerComparisonKey("postgres://u:p@host:5432/db");
+
+        Assert.Equal(keyA, keyB);
+    }
+
+    [Fact]
+    public void BuildServerComparisonKey_rejects_missing_host()
+    {
+        var ex = Assert.Throws<ValidationException>(() =>
+            PostgresConnectionString.BuildServerComparisonKey("postgres:///app"));
+
+        Assert.Contains("host", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Validate_rejects_identical_origin_and_destination()
     {
         var options = new CliOptions(

@@ -1,5 +1,8 @@
 // File: tests/PostgresCopy.Tests/AllDatabasesMigrationRunnerTests.cs
 
+using PostgresCopy.Cli;
+using PostgresCopy.Config;
+using PostgresCopy.Logging;
 using PostgresCopy.Migration;
 using Xunit;
 
@@ -7,6 +10,63 @@ namespace PostgresCopy.Tests;
 
 public class AllDatabasesMigrationRunnerTests
 {
+    private sealed class NullMigrationLogger : IMigrationLogger
+    {
+        public void Info(string message) { }
+        public void Step(string message) { }
+        public void Plan(MigrationPlan plan) { }
+        public void TableStart(string tableName, long rows) { }
+        public void TableDone(string tableName, long rows, TimeSpan elapsed) { }
+        public void TableFailed(string tableName, string message) { }
+        public void DatabaseStart(string databaseName) { }
+        public void DatabaseDone(string databaseName, TimeSpan elapsed) { }
+        public void DatabaseFailed(string databaseName, string message) { }
+        public void Success(string message) { }
+        public void Error(string message) { }
+    }
+
+    [Fact]
+    public void SameServer_returns_true_when_host_and_port_match_but_database_differs()
+    {
+        var result = AllDatabasesMigrationRunner.SameServer(
+            "postgres://user@host:5432/pgcopy",
+            "postgres://user@host:5432/scratch");
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void SameServer_returns_false_for_different_hosts()
+    {
+        var result = AllDatabasesMigrationRunner.SameServer(
+            "postgres://user@hostA:5432/db",
+            "postgres://user@hostB:5432/db");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task RunAsync_throws_ValidationException_when_origin_and_destination_share_server()
+    {
+        var settings = new AllDatabasesMigrationSettings(
+            "postgres://user@host:5432/pgcopy",
+            "postgres://user@host:5432/scratch",
+            [],
+            false,
+            false,
+            false,
+            CliOptionsParser.DefaultBatchSize,
+            false);
+
+        var runner = new AllDatabasesMigrationRunner(new NullMigrationLogger());
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            runner.RunAsync(settings, destructiveActionsConfirmed: true, CancellationToken.None));
+
+        Assert.Contains("same", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("server", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void FilterSelectedDatabases_ExcludesRequestedNames()
     {

@@ -100,6 +100,21 @@ public static class PostgresConnectionString
 
     public static string Redact(string value) => Parse(value).RedactedConnectionString;
 
+    public static string BuildServerComparisonKey(string connectionStringOrUrl)
+    {
+        var builder = ParseBuilder(connectionStringOrUrl, allowMissingDatabase: true);
+
+        if (string.IsNullOrWhiteSpace(builder.Host))
+        {
+            throw BuildConnectionValidationException(
+                "Connection string must include a host.",
+                "PostgresCopy could parse the value, but it does not say which PostgreSQL server to contact.",
+                "Include a host, for example postgres://user:password@host:5432 or Host=host;Username=user;Password=...");
+        }
+
+        return $"host={builder.Host.ToLowerInvariant()};port={builder.Port}";
+    }
+
     public static string WithDatabase(string connectionStringOrUrl, string databaseName)
     {
         if (string.IsNullOrWhiteSpace(databaseName))

@@ -26,6 +26,13 @@ public sealed class AllDatabasesMigrationRunner(IMigrationLogger logger)
             results);
     }
 
+    public static bool SameServer(string originConnectionString, string destinationConnectionString)
+    {
+        var originServerKey = PostgresConnectionString.BuildServerComparisonKey(originConnectionString);
+        var destinationServerKey = PostgresConnectionString.BuildServerComparisonKey(destinationConnectionString);
+        return originServerKey.Equals(destinationServerKey, StringComparison.Ordinal);
+    }
+
     public async Task<AllDatabasesRunResult> RunAsync(
         AllDatabasesMigrationSettings settings,
         bool destructiveActionsConfirmed,
@@ -34,6 +41,14 @@ public sealed class AllDatabasesMigrationRunner(IMigrationLogger logger)
         if (!settings.DryRun && !destructiveActionsConfirmed)
         {
             throw new ValidationException("Copy all databases was not confirmed. Migration cancelled.");
+        }
+
+        if (SameServer(settings.OriginConnectionString, settings.DestinationConnectionString))
+        {
+            throw new ValidationException(
+                "Origin and destination point to the same PostgreSQL server. " +
+                "Copying all databases from a server to itself would overwrite the origin's own databases. " +
+                "Refusing to continue.");
         }
 
         logger.Step("Enumerating origin databases");
