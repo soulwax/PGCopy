@@ -13,4 +13,5 @@ internal sealed record DesktopRunHistoryEntry(
     int TablesCopied,
     long RowsCopied,
     TimeSpan Elapsed,
-    string Message);
+    string Message,
+    string? BatchId = null);

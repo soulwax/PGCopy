@@ -39,6 +39,9 @@ public sealed class MainForm : Form
     private readonly CheckBox truncateCheckBox = new();
     private readonly CheckBox createSchemaCheckBox = new();
     private readonly CheckBox dropSchemaCheckBox = new();
+    private readonly CheckBox allDatabasesCheckBox = new();
+    private readonly Button loadDatabasesButton = new();
+    private readonly CheckedListBox allDatabasesChecklist = new();
 
     // Database Peek tab
     private readonly TextBox peekDatabaseTextBox = new();
@@ -130,6 +133,7 @@ public sealed class MainForm : Form
         BuildLayout();
         UpdateRunState();
         UpdatePgToolsState();
+        UpdateAllDatabasesModeState();
     }
 
     private void BuildLayout()
@@ -418,6 +422,26 @@ public sealed class MainForm : Form
             "Optional comma-separated table list. Leave empty to copy every base table in the selected schema.");
         AddRow(panel, "Options", BuildOptionsPanel());
 
+        loadDatabasesButton.Text = "Load databases";
+        loadDatabasesButton.AutoSize = true;
+        loadDatabasesButton.Visible = false;
+        StyleButton(loadDatabasesButton, ButtonTone.Secondary);
+        loadDatabasesButton.Click += LoadDatabasesButton_Click;
+        SetHelp(loadDatabasesButton,
+            "Connect to the origin server and list every database (excluding template0, template1, and postgres) to select which ones to copy.");
+
+        allDatabasesChecklist.CheckOnClick = true;
+        allDatabasesChecklist.Visible = false;
+        allDatabasesChecklist.Height = 120;
+        allDatabasesChecklist.Dock = DockStyle.Fill;
+
+        var allDatabasesPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, AutoSize = true, BackColor = SurfaceBackColor };
+        allDatabasesPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        allDatabasesPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        allDatabasesPanel.Controls.Add(loadDatabasesButton, 0, 0);
+        allDatabasesPanel.Controls.Add(allDatabasesChecklist, 0, 1);
+        AddRow(panel, "All databases", allDatabasesPanel);
+
         return panel;
     }
 
@@ -466,10 +490,18 @@ public sealed class MainForm : Form
         SetHelp(dropSchemaCheckBox,
             "Before applying DDL, DROP SCHEMA ... CASCADE on the destination. Permanently deletes every table, index, sequence, function, view, and trigger in the schema. You will see a separate warning before anything is dropped. Only available when Create schema is checked.");
 
+        allDatabasesCheckBox.Text = "Copy all databases (overwrite destination entirely)";
+        allDatabasesCheckBox.AutoSize = true;
+        StyleCheckBox(allDatabasesCheckBox);
+        allDatabasesCheckBox.CheckedChanged += (_, _) => UpdateAllDatabasesModeState();
+        SetHelp(allDatabasesCheckBox,
+            "Enumerates every database on the origin server, then drops and recreates the same-named database on the destination for each one, copying schema and data. Ignores Schema and Tables. Requires typing OVERWRITE to confirm.");
+
         AddOptionCheckBox(panel, createSchemaCheckBox);
         AddOptionCheckBox(panel, verifyCheckBox);
         AddOptionCheckBox(panel, truncateCheckBox);
         AddOptionCheckBox(panel, dropSchemaCheckBox);
+        AddOptionCheckBox(panel, allDatabasesCheckBox);
         return panel;
     }
 
@@ -772,6 +804,69 @@ public sealed class MainForm : Form
         }
     }
 
+    private async void LoadDatabasesButton_Click(object? sender, EventArgs eventArgs)
+    {
+        BeginLogOperation("Load databases");
+        runningStatusOverride = "Listing origin databases...";
+        activeRun = new CancellationTokenSource();
+        SetRunning(true);
+        string? finalStatus = null;
+
+        try
+        {
+            var origin = PostgresConnectionString.Parse(originTextBox.Text.Trim());
+            var maintenanceConnectionString = PostgresConnectionString.WithDatabase(
+                origin.ConnectionString, DestinationDatabaseLifecycle.DefaultMaintenanceDatabase);
+
+            await using var connection = new NpgsqlConnection(maintenanceConnectionString);
+            await connection.OpenAsync(activeRun.Token);
+            var databases = await DestinationDatabaseLifecycle.ListDatabasesAsync(connection, activeRun.Token);
+
+            allDatabasesChecklist.Items.Clear();
+            foreach (var name in databases)
+            {
+                allDatabasesChecklist.Items.Add(name, isChecked: true);
+            }
+
+            AppendLog($"Found {databases.Count} database(s) on origin (excluding template0, template1, postgres).");
+            finalStatus = "Databases loaded.";
+        }
+        catch (ValidationException ex)
+        {
+            AppendLog(FormatValidationError(ex.Message));
+            finalStatus = "Validation failed.";
+        }
+        catch (PostgresException ex)
+        {
+            AppendLog(FormatPostgresError(ex));
+            finalStatus = "PostgreSQL error.";
+        }
+        catch (NpgsqlException ex)
+        {
+            AppendLog(FormatNpgsqlError(ex.Message));
+            finalStatus = "Connection failed.";
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Load databases cancelled.");
+            finalStatus = "Cancelled.";
+        }
+        catch (Exception ex)
+        {
+            AppendLog(FormatUnexpectedError(ex.Message));
+            finalStatus = "Load databases failed.";
+        }
+        finally
+        {
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
+        }
+    }
+
     // ── Preflight tab ──────────────────────────────────────────────────────────
 
     private Control BuildPreflightPanel()
@@ -982,6 +1077,26 @@ public sealed class MainForm : Form
             SetRunning(false);
             if (finalStatus is not null)
                 statusLabel.Text = finalStatus;
+        }
+    }
+
+    // Toggles the Connection tab between single-database mode and copy-all-databases mode:
+    // disables the fields that don't apply to an all-databases run and shows/hides the
+    // "Load databases" button and checklist.
+    private void UpdateAllDatabasesModeState()
+    {
+        var enabled = allDatabasesCheckBox.Checked;
+        schemaTextBox.Enabled = !enabled;
+        tablesTextBox.Enabled = !enabled;
+        truncateCheckBox.Enabled = !enabled;
+        createSchemaCheckBox.Enabled = !enabled && SchemaCreator.PgToolsAvailable();
+        dropSchemaCheckBox.Enabled = !enabled && createSchemaCheckBox.Checked && SchemaCreator.PgToolsAvailable();
+        allDatabasesChecklist.Visible = enabled;
+        loadDatabasesButton.Visible = enabled;
+
+        if (enabled)
+        {
+            allDatabasesChecklist.Items.Clear();
         }
     }
 
@@ -1707,6 +1822,12 @@ public sealed class MainForm : Form
 
     private async Task RunMigrationAsync(bool dryRun)
     {
+        if (allDatabasesCheckBox.Checked)
+        {
+            await RunAllDatabasesAsync(dryRun);
+            return;
+        }
+
         BeginLogOperation(dryRun ? "Dry run" : "Copy");
         activeRunDryRun = dryRun;
         SetRunning(true);
@@ -1832,6 +1953,104 @@ public sealed class MainForm : Form
         }
     }
 
+    private async Task RunAllDatabasesAsync(bool isDryRun)
+    {
+        BeginLogOperation(isDryRun ? "All databases dry run" : "All databases copy");
+        runningStatusOverride = isDryRun ? "Checking all databases..." : "Copying all databases...";
+        activeRun = new CancellationTokenSource();
+        activeRunDryRun = isDryRun;
+        SetRunning(true);
+        var startedAt = DateTime.Now;
+        string? finalStatus = null;
+
+        try
+        {
+            var origin = PostgresConnectionString.Parse(originTextBox.Text.Trim());
+            var destination = PostgresConnectionString.Parse(destinationTextBox.Text.Trim());
+
+            if (origin.ComparisonKey.Equals(destination.ComparisonKey, StringComparison.Ordinal))
+            {
+                throw new ValidationException("Origin and destination point to the same database. Refusing to continue.");
+            }
+
+            var excludeDatabases = DestinationDatabaseLifecycle.ExcludedDatabaseNames
+                .Concat(allDatabasesChecklist.Items.Cast<string>()
+                    .Where((_, index) => !allDatabasesChecklist.GetItemChecked(index)))
+                .ToList();
+
+            var settings = new AllDatabasesMigrationSettings(
+                origin.ConnectionString,
+                destination.ConnectionString,
+                excludeDatabases,
+                isDryRun,
+                verifyCheckBox.Checked,
+                false,
+                CliOptionsParser.DefaultBatchSize,
+                false);
+
+            var confirmed = isDryRun || ConfirmOverwriteAllDatabasesDialog(
+                allDatabasesChecklist.Items.Cast<string>()
+                    .Where((_, index) => allDatabasesChecklist.GetItemChecked(index))
+                    .ToList());
+
+            if (!isDryRun && !confirmed)
+            {
+                finalStatus = "Cancelled.";
+                return;
+            }
+
+            var runner = new AllDatabasesMigrationRunner(new UiMigrationLogger(AppendLog));
+            var summary = await runner.RunAsync(settings, confirmed, activeRun.Token);
+
+            var batchId = Guid.NewGuid().ToString("N")[..8];
+            foreach (var perDatabase in summary.Results)
+            {
+                SaveRunHistory(
+                    startedAt,
+                    perDatabase.Elapsed,
+                    null,
+                    perDatabase.Result,
+                    perDatabase.Succeeded,
+                    perDatabase.Succeeded
+                        ? $"[{perDatabase.DatabaseName}] {(isDryRun ? "Dry run" : "Copy")} succeeded."
+                        : $"[{perDatabase.DatabaseName}] {perDatabase.FailureMessage}",
+                    batchId);
+            }
+
+            finalStatus = $"Completed {summary.TotalDatabases} database(s): {summary.Succeeded} succeeded, {summary.Failed} failed.";
+        }
+        catch (ValidationException ex)
+        {
+            AppendLog(FormatValidationError(ex.Message));
+            finalStatus = "Validation failed.";
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("All databases run cancelled.");
+            finalStatus = "Cancelled.";
+        }
+        catch (Exception ex)
+        {
+            AppendLog(FormatUnexpectedError(ex.Message));
+            finalStatus = "All databases run failed.";
+        }
+        finally
+        {
+            activeRun?.Dispose();
+            activeRun = null;
+            runningStatusOverride = null;
+            SetRunning(false);
+            if (finalStatus is not null)
+                statusLabel.Text = finalStatus;
+        }
+    }
+
+    private bool ConfirmOverwriteAllDatabasesDialog(IReadOnlyList<string> databaseNames)
+    {
+        using var dialog = new OverwriteAllDatabasesDialog(databaseNames);
+        return dialog.ShowDialog(this) == DialogResult.OK;
+    }
+
     private MigrationSettings BuildSettings(
         bool dryRun,
         string? originOverride = null,
@@ -1862,11 +2081,12 @@ public sealed class MainForm : Form
         MigrationSettings? settings,
         MigrationRunResult? result,
         bool succeeded,
-        string message)
+        string message,
+        string? batchId = null)
     {
         try
         {
-            var entry = CreateHistoryEntry(startedAt, elapsed, settings, result, succeeded, message);
+            var entry = CreateHistoryEntry(startedAt, elapsed, settings, result, succeeded, message, batchId);
             historyStore.Append(entry);
             LoadRunHistory();
         }
@@ -1882,7 +2102,8 @@ public sealed class MainForm : Form
         MigrationSettings? settings,
         MigrationRunResult? result,
         bool succeeded,
-        string message)
+        string message,
+        string? batchId = null)
     {
         var origin = TryRedactForHistory(
             originTextBox.Text,
@@ -1906,7 +2127,8 @@ public sealed class MainForm : Form
             result?.TablesCopied ?? 0,
             result?.RowsCopied ?? 0,
             elapsed,
-            CompactHistoryMessage(message));
+            CompactHistoryMessage(message),
+            batchId);
     }
 
     private static string TryRedactForHistory(string value, string fallback)
@@ -2327,6 +2549,9 @@ public sealed class MainForm : Form
         truncateCheckBox.Enabled = !running;
         createSchemaCheckBox.Enabled = !running && SchemaCreator.PgToolsAvailable();
         dropSchemaCheckBox.Enabled = !running && createSchemaCheckBox.Checked && SchemaCreator.PgToolsAvailable();
+        allDatabasesCheckBox.Enabled = !running;
+        loadDatabasesButton.Enabled = !running;
+        allDatabasesChecklist.Enabled = !running;
 
         peekDatabaseTextBox.Enabled = !running;
         peekButton.Enabled = !running;
