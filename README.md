@@ -224,9 +224,15 @@ dotnet run --project src/PostgresCopy -- `
 | `--truncate-destination` | Empty destination tables before copying. |
 | `--yes` | Skip the interactive `TRUNCATE` confirmation (for scripts). |
 | `--verify` | Compare origin and destination row counts after the copy. Mismatched tables are cleared, recopied, and verified again up to a bounded retry limit. |
+| `--all-databases` | Copy all non-system databases from origin to destination (DESTRUCTIVE). Drops and recreates each destination database. Cannot be combined with `--schema`, `--table`/`--tables`, `--schema-only`, `--data-only`, `--create-schema`, `--drop-schema`, or `--truncate-destination`. Requires typing `OVERWRITE` at the confirmation prompt (or `--yes` non-interactively). |
+| `--exclude-database <name>` | Skip this database when using `--all-databases`. May be passed multiple times. |
 | `--batch-size <n>` | Reserved for future use. Defaults to 10000. |
 | `--verbose` | Print stack traces for unexpected failures. |
 | `--help` | Show the built-in help. |
+
+### Copy all databases (destructive mode)
+
+`--all-databases` enumerates every non-system database on the origin server and drops, recreates, and copies each same-named database on the destination. Schema creation is mandatory in this mode and cannot be disabled. The confirmation prompt requires typing `OVERWRITE` (or use `--yes` for non-interactive scripts) because every matching destination database will be completely recreated. Use `--exclude-database <name>` to skip specific databases from the operation.
 
 ### Scripted use
 
